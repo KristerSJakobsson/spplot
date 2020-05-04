@@ -1,6 +1,5 @@
 <template>
   <div id="app">
-    <img alt="SP Plot" src="./assets/graph.svg">
     <Controls/>
   </div>
 </template>
