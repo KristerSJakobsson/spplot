@@ -8,19 +8,31 @@
         <b-container>
             <b-row>
                 <b-col sm="3">
-                    <label for="input-maturity">Maturity:</label>
+                    <label for="input-start-date">Start Date:</label>
                 </b-col>
                 <b-col sm="9">
-                    <b-form-input id="input-maturity"
-                                  type="text"
-                                  @change="updatePayload"
-                                  :state="validatedMaturity"
-                                  v-model="maturity"
-                                  placeholder="Enter Maturity as 12M, 3Y etc.">
-                    </b-form-input>
+                    <b-form-datepicker id="input-start-date"
+                                       @input="updatePayload"
+                                       :state="validatedStartDate"
+                                       v-model="startDate">
+                    </b-form-datepicker>
+                </b-col>
+            </b-row>
+
+            <b-row>
+                <b-col sm="3">
+                    <label for="input-end-date">End Date:</label>
+                </b-col>
+                <b-col sm="9">
+                    <b-form-datepicker id="input-end-date"
+                                       @input="updatePayload"
+                                       :state="validatedEndDate"
+                                       :min="startDate"
+                                       v-model="endDate">
+                    </b-form-datepicker>
                     <!-- This will only be shown if the preceding input has an invalid state -->
                     <b-form-invalid-feedback id="input-live-feedback">
-                        Enter a value such as 12M or 6Y.
+                        Start Date must be after End Date.
                     </b-form-invalid-feedback>
                 </b-col>
             </b-row>
@@ -66,6 +78,23 @@
 
             <b-row>
                 <b-col sm="3">
+                    <label for="input-start-level">Start Level:</label>
+                </b-col>
+                <b-col sm="9">
+                    <b-input-group append="%" class="mb-2 mr-sm-2 mb-sm-0">
+                        <b-form-input id="input-start-level"
+                                      type="number"
+                                      @change="updatePayload"
+                                      :state="validatedStartLevel"
+                                      v-model="startLevel"
+                                      placeholder="Enter Participation Rate as a percentage.">
+                        </b-form-input>
+                    </b-input-group>
+                </b-col>
+            </b-row>
+
+            <b-row>
+                <b-col sm="3">
                     <label for="input-participation-rate">Participation Rate:</label>
                 </b-col>
                 <b-col sm="9">
@@ -80,16 +109,46 @@
                     </b-input-group>
                 </b-col>
             </b-row>
+
+            <b-row>
+                <b-col sm="3">
+                    <label for="input-data-file">Upload CSV Data:</label>
+                </b-col>
+                <b-col sm="9">
+                    <b-form-file id="input-data-file"
+                                 :state="Boolean(assetData)"
+                                 @input="loadDataFile"
+                                 accept="text/csv"
+                                 placeholder="Choose a CSV file or drop it here..."
+                                 drop-placeholder="Drop CSV file here...">
+                    </b-form-file>
+                </b-col>
+            </b-row>
+
+            <b-row>
+                <b-col sm="3">
+                    <label for="input-data-selector">Select Data Column:</label>
+                </b-col>
+                <b-col sm="9">
+                    <b-form-select id="input-data-selector"
+                                   @change="prepareSimulationData"
+                                   :state="Boolean(assetData)"
+                                   :options="dataFileColumns"
+                                   v-model="selectedDataFileColumn">
+                    </b-form-select>
+                </b-col>
+            </b-row>
         </b-container>
 
         <b-tabs content-class="mt-3">
-            <b-tab title="Payoff" active>
+            <b-tab title="Simulation" active>
+                <SimulationGraph :payload="payload"
+                                 :assetData="cleanedAssetData"
+                                 @payload-changed="payloadChanged"/>
+            </b-tab>
+            <b-tab title="Payoff">
                 <PayoffGraph :payload="payload"
                              @payload-changed="payloadChanged"/>
-            </b-tab>
-            <b-tab title="Simulation">
-                <SimulationGraph :payload="payload"
-                                 @payload-changed="payloadChanged"/>
             </b-tab>
         </b-tabs>
     </div>
@@ -100,6 +159,9 @@
     import SimulationGraph from './canvas/SimulationGraph.vue'
     import {parseTenorToMonths} from './utils.js'
     import {currencyData} from './resources.js'
+    import * as csvParse from 'csv-parse/lib/sync'
+
+    const dateHeader = "Date";
 
     export default {
         name: 'Controls',
@@ -109,21 +171,31 @@
         },
         data() {
             const defaultCurrency = "USD";
-            const defaultMaturity = "6Y";
+            const defaultStartDate = "2019-03-01";
+            const defaultEndDate = "2020-03-01";
             const defaultParticipationRate = 50;
+            const defaultStartLevel = 100;
             const defaultNotional = 10000;
 
+
             return {
-                maturity: defaultMaturity,
+                startDate: defaultStartDate,
+                endDate: defaultEndDate,
                 notional: defaultNotional,
                 participationRate: defaultParticipationRate,
+                startLevel: defaultStartLevel,
                 currency: defaultCurrency,
                 payload: {
-                    maturity: this.parseTenor(defaultMaturity),
+                    keyDates: this.parseKeyDates(defaultStartDate, defaultEndDate),
                     notional: this.parseNotional(defaultNotional),
-                    participationRate: this.parseParticipationRate(defaultParticipationRate),
+                    participationRate: this.parsePercentage(defaultParticipationRate),
+                    startLevel: this.parsePercentage(defaultStartLevel),
                     currency: this.parseCurrency(defaultCurrency)
-                }
+                },
+                assetData: null,
+                cleanedAssetData: null,
+                dataFileColumns: [{value: null, text: "None"}],
+                selectedDataFileColumn: null
             }
         },
         computed: {
@@ -134,14 +206,20 @@
                 }
                 return result;
             },
-            validatedMaturity() {
-                return this.validTenor(this.maturity);
+            validatedStartDate() {
+                return this.validDate(this.startDate);
+            },
+            validatedEndDate() {
+                return this.validDate(this.startDate);
             },
             validatedCurrency() {
                 return this.validCurrency(this.currency);
             },
             validatedParticipationRate() {
-                return this.validParticipationRate(this.participationRate);
+                return this.participationRate > 0;
+            },
+            validatedStartLevel() {
+                return this.startLevel > 0;
             },
             validatedNotional() {
                 return this.validNotional(this.notional);
@@ -149,33 +227,80 @@
         },
         methods: {
             payloadChanged(newPayload) {
-                this.maturity = this.formatTenor(newPayload.maturity);
+                this.startDate = newPayload.keyDates.startDate;
+                this.endDate = newPayload.keyDates.endDate;
                 this.notional = this.formatNotional(newPayload.notional);
-                this.participationRate = this.formatParticipationRate(newPayload.participationRate);
+                this.participationRate = this.formatPercentage(newPayload.participationRate);
+                this.startLevel = this.formatPercentage(newPayload.startLevel);
                 this.currency = this.formatCurrency(newPayload.currency);
             },
             updatePayload() {
-                this.payload = {
-                    maturity: this.parseTenor(this.maturity),
-                    notional: this.parseNotional(this.notional),
-                    participationRate: this.parseParticipationRate(this.participationRate),
-                    currency: this.parseCurrency(this.currency)
-                }
+                // Note: Important that we do not overwrite payload
+                this.payload.keyDates = this.parseKeyDates(this.startDate, this.endDate);
+                this.payload.notional = this.parseNotional(this.notional);
+                this.payload.participationRate = this.parsePercentage(this.participationRate);
+                this.payload.startLevel = this.parsePercentage(this.startLevel);
+                this.payload.currency = this.parseCurrency(this.currency);
             },
-            validTenor(maturityString) {
-                const parsedMaturity = parseTenorToMonths(maturityString);
-                return parsedMaturity !== undefined;
+            loadDataFile(file) {
+                const fileReader = new FileReader();
+
+                fileReader.onload = event => {
+                    const assetData = csvParse(event.target.result,
+                        {
+                            columns: true,
+                            skip_empty_lines: true
+                        });
+                    const headers = Object.keys(assetData[0]);
+
+                    if (headers.indexOf(dateHeader) === -1) {
+                        throw `Loaded file does not have a column for ${dateHeader}.`;
+                    }
+
+                    this.assetData = assetData;
+                    const filtered = headers
+                        .filter(value => value !== dateHeader)
+                        .map(value => {
+                            return {
+                                value: value,
+                                text: value
+                            }
+                        });
+
+                    this.dataFileColumns = filtered;
+                    this.selectedDataFileColumn = filtered[0].value;
+                    this.prepareSimulationData();
+                };
+
+                fileReader.onerror = function () {
+                    this.dataFileColumns = [{value: null, text: "None"}];
+                    this.selectedDataFileColumn = null;
+                    this.assetData = null;
+                };
+
+                fileReader.readAsText(file);
+
             },
-            parseTenor(maturityString) {
+            prepareSimulationData() {
+                this.cleanedAssetData = this.assetData.map(data => {
+                    const stringValue = data[this.selectedDataFileColumn];
+                    return {
+                        date: data[dateHeader],
+                        value: Number(stringValue)
+                    };
+                });
+            },
+            parseKeyDates(startDate, endDate) {
+                return {
+                    "startDate": startDate,
+                    "endDate": endDate
+                };
+            },
+            validDate(date) {
+                return !!date;
+            },
+            parseDate(maturityString) {
                 return parseTenorToMonths(maturityString);
-            },
-            formatTenor(maturityNumber) {
-                // Here we assume the input is years if multiple of 12
-                if (maturityNumber % 12 === 0) {
-                    const maturityInYears = maturityNumber / 12;
-                    return `${maturityInYears}Y`
-                }
-                return `${maturityNumber}M`
             },
             validCurrency(currency) {
                 return currency !== "";
@@ -186,14 +311,11 @@
             formatCurrency(currency) {
                 return currency;
             },
-            validParticipationRate(participationRate) {
-                return participationRate > 0;
+            parsePercentage(percentage) {
+                return Number(percentage) / 100.0;
             },
-            parseParticipationRate(participationRate) {
-                return Number(participationRate);
-            },
-            formatParticipationRate(participationRate) {
-                return `${participationRate}`;
+            formatPercentage(participationRate) {
+                return `${participationRate * 100.0}`;
             },
             validNotional(notional) {
                 return notional > 0;

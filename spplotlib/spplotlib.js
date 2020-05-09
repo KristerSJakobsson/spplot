@@ -1,4 +1,3 @@
-
 /* Vocabulary:
     - counterparty: Bank who issues product
     - start_level: Percentage of underlying at start which is considered for receiving return, may be 90%, 100%, 110% etc.
@@ -41,67 +40,234 @@
     - Use averaging for a period, example last year
 
  */
-//
-// chart = {
-//
-//     const product = {
-//         investment: "FTSE 100 Index",
-//         notional: 10000,
-//         maturity: 6*12,
-//         participationRate: 0.5
-//     };
-//
-//     const data = [
-//         {index: 1, value: 1.1},
-//         {index: 2, value: 1.09},
-//         {index: 3, value: 1.05},
-//         {index: 4, value: 1.06},
-//         {index: 5, value: 1.03},
-//         {index: 6, value: 1.01},
-//         {index: 7, value: 1.02},
-//         {index: 8, value: 0.99},
-//         {index: 9, value: 0.96},
-//         {index: 10, value: 0.97},
-//         {index: 11, value: 0.96},
-//         {index: 12, value: 0.99},
-//         {index: 13, value: 1.0},
-//         {index: 14, value: 1.12},
-//         {index: 15, value: 1.14},
-//         {index: 16, value: 1.12},
-//         {index: 17, value: 1.09},
-//         {index: 18, value: 1.04},
-//         {index: 19, value: 1.02},
-//         {index: 20, value: 1.04}
-//     ];
-//
-//     const svg = d3.create("svg")
-//         .attr("viewBox", [0, 0, width, height]);
-//
-//     const zx = x.copy(); // x, but with a new domain.
-//
-//     const line = d3.line()
-//         .x(d => zx(d.date))
-//         .y(d => y(d.close));
-//
-//     const path = svg.append("path")
-//         .attr("fill", "none")
-//         .attr("stroke", "steelblue")
-//         .attr("stroke-width", 1.5)
-//         .attr("stroke-miterlimit", 1)
-//         .attr("d", line(data));
-//
-//     const gx = svg.append("g")
-//         .call(xAxis, zx);
-//
-//     const gy = svg.append("g")
-//         .call(yAxis, y);
-//
-//     return Object.assign(svg.node(), {
-//         update(domain) {
-//             const t = svg.transition().duration(750);
-//             zx.domain(domain);
-//             gx.transition(t).call(xAxis, zx);
-//             path.transition(t).attr("d", line(data));
-//         }
-//     });
-// }
+
+import * as d3 from "d3";
+
+// import moment from 'moment';
+const Y_RANGE_CLASS = "spplotYAxis"
+const X_RANGE_CLASS = "spplotXAxis"
+
+
+class SimulationModel {
+    notional;
+    currency;
+    participationRate;
+    startLevel;
+    startDate;
+    startDateRaw;
+    endDate;
+    assetData;
+    fixing;
+
+    setNotional(notional) {
+        this.notional = notional;
+        return this;
+    }
+
+    setCurrency(currency) {
+        this.currency = currency;
+        return this;
+    }
+
+    setParticipationRate(participationRate) {
+        this.participationRate = participationRate;
+        return this;
+    }
+
+    setStartLevel(startLevel) {
+        this.startLevel = startLevel;
+        return this;
+    }
+
+    setKeyDates(keyDates) {
+        const mandatoryDates = ['startDate', 'endDate'];
+        mandatoryDates.forEach(mandatoryDate => {
+            if (!(Object.keys(keyDates).includes(mandatoryDate))) {
+                throw `Mandatory "${mandatoryDate}"-property is missing from the "keyDates" object.`;
+            }
+        });
+        // Parse key dates using d3
+        this.startDate = this.parseDate(keyDates.startDate);
+        this.startDateRaw = keyDates.startDate;
+        this.endDate = this.parseDate(keyDates.endDate);
+        return this;
+    }
+
+    setAssetData(assetData) {
+        // Set the fixing to startDate
+        const fixing = assetData.find(data => data.date === this.startDateRaw);
+
+        if (!fixing) {
+            this.fixin = null;
+            throw `Not possible to render graph since asset has no value for fixing date ${this.startDateRaw}.`;
+        }
+        this.fixing = {
+            date: this.parseDate(fixing.date),
+            value: Number(fixing.value)
+        }
+
+        this.assetData = assetData
+            .map(data => {
+                return {
+                    rawDate: data.date,
+                    date: this.parseDate(data.date),
+                    value: Number(data.value)
+                };
+            })
+            .filter(data => {
+                return data.date >= this.startDate && data.date <= this.endDate;
+            })
+            .map(data => {
+                return {
+                    date: data.date,
+                    value: 100 * data.value / this.fixing.value
+                };
+            });
+
+        return this;
+    }
+
+    parseDate(dateString) {
+        return d3.timeParse("%Y-%m-%d")(dateString);
+    }
+
+}
+
+
+export class SimulationGraphPlotter {
+    // Original inputs, mutable
+    productData;
+    assetData;
+
+    // D3 graph controls
+    svg;
+    xAxis;
+    yAxis;
+    xRange;
+    yRange;
+    dataLine;
+    model;
+    path;
+
+    constructor(bindTarget, width, height, product, assetData, margin) {
+        this.bindTarget = bindTarget;
+        this.width = width;
+        this.height = height;
+        this.productData = product;
+        this.assetData = assetData;
+        this.margin = margin;
+    }
+
+    _readData() {
+        this.model = new SimulationModel()
+            .setNotional(this.productData.notional)
+            .setCurrency(this.productData.currency)
+            .setParticipationRate(this.productData.participationRate)
+            .setStartLevel(this.productData.startLevel)
+            .setKeyDates(this.productData.keyDates);
+        if (this.productData.assetData) {
+            this.model.setAssetData(this.productData.assetData);
+        }
+    }
+
+    initialize() {
+        // Craete SVG element with margins
+        this._readData();
+        this.svg = d3.select(this.bindTarget)
+            .append("svg")
+            .attr("width", this.width + this.margin.left + this.margin.right)
+            .attr("height", this.height + this.margin.top + this.margin.bottom)
+            .append("g")
+            .attr("transform", `translate(${this.margin.left},${this.margin.top})`);
+
+        this._initializeXAxis();
+        this._initializeYAxis();
+    }
+
+    _initializeXAxis() {
+        // Add x-axis
+        this.xAxis = d3.scaleTime()
+            .domain([this.model.startDate, this.model.endDate])
+            .range([0, this.width]);
+
+        this.xRange = this.svg.append("g")
+            .attr("transform", `translate(0,${this.height})`)
+            .call(d3.axisBottom(this.xAxis))
+            .attr("class", X_RANGE_CLASS);
+
+        // Add x-axis label
+        this.svg.append("text")
+            .attr("text-anchor", "end")
+            .attr("x", this.width)
+            .attr("y", this.height + this.margin.top + 20)
+            .text("Time");
+    }
+
+    _initializeYAxis() {
+        // Add y-axis
+        this.yAxis = d3.scaleLinear()
+            .domain([0, 200])
+            .range([this.height, 0]);
+
+        this.yRange = this.svg.append("g")
+            .call(d3.axisLeft(this.yAxis))
+            .attr("class", Y_RANGE_CLASS);
+
+        // Add y-axis label
+        this.svg.append("text")
+            .attr("text-anchor", "end")
+            .attr("transform", "rotate(-90)") // Note: Needed so that text does not rotate with axis
+            .attr("y", -this.margin.left + 20)
+            .attr("x", -this.margin.top)
+            .text("Coupon Level");
+    }
+
+    updateAssetData(assetData) {
+        this.productData.assetData = assetData;
+        this._readData();
+        this._updateTimeScale();
+        this._updateAssetData();
+    }
+
+    _updateTimeScale() {
+        this.xAxis = d3.scaleTime()
+            .domain([this.model.startDate, this.model.endDate])
+            .range([0, this.width]);
+
+        this.xRange.transition()
+            .duration(5000)
+            .call(d3.axisBottom(this.xAxis));
+
+    }
+
+    _updateAssetData() {
+        if (this.model.assetData) {
+            this.dataLine = this.svg
+                .selectAll(".lineTest")
+                .data([this.model.assetData], d => d.value);
+
+            this.dataLine.enter()
+                .append("path")
+                .attr("class", "lineTest")
+                .merge(this.dataLine)
+                .transition()
+                .duration(5000)
+                .attr("d", d3.line()
+                    .x(d => this.xAxis(d.date))
+                    .y(d => this.yAxis(d.value)))
+                .attr("fill", "none")
+                .attr("stroke", "steelblue")
+                .attr("stroke-width", 2.5);
+        }
+
+    }
+
+    plot() {
+        this._readData();
+        this._updateTimeScale();
+        this._updateAssetData();
+    }
+
+
+}
+

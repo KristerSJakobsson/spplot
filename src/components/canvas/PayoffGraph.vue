@@ -32,16 +32,15 @@
             }
         },
         methods: {
-            updatePayload(){
-                try{
+            updatePayload() {
+                try {
                     const newPayload = JSON.parse(this.payloadJson);
                     this.$emit("payload-changed", newPayload);
-                }
-                catch (e) {
+                } catch (e) {
                     console.log("Warning: Invalid JSON in payload!");
                 }
             },
-            parsePayloadJson(){
+            parsePayloadJson() {
                 return JSON.stringify(this.payload, null, 4);
             }
         }
