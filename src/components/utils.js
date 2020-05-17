@@ -16,6 +16,45 @@ export function parseTenorToMonths(maturity) {
     }
 }
 
+export function validDate(date) {
+    return !!date;
+}
+
+export function validCurrency(currency) {
+    return currency !== "";
+}
+
+export function parseCurrency(currency) {
+    return currency;
+}
+
+export function formatCurrency(currency) {
+    return currency;
+}
+export function parsePercentage(percentage) {
+    return Number(percentage) / 100.0;
+}
+
+export function formatPercentage(participationRate) {
+    return `${participationRate * 100.0}`;
+}
+
+export function validNotional(notional) {
+    return notional > 0;
+}
+
+export function validBarrier(notional) {
+    return notional > 0;
+}
+
+export function parseNotional(notional) {
+    return Number(notional);
+}
+
+export function formatNotional(notional) {
+    return `${notional}`;
+}
+
 
 // const product = {
 //     "investment": "FTSE 100 Index",

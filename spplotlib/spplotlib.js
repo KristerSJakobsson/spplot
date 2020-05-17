@@ -42,100 +42,19 @@
  */
 
 import * as d3 from "d3";
+import {SimulationModel} from "./src/simulation-model.js"
 
-// import moment from 'moment';
+// CSS Classes
 const Y_RANGE_CLASS = "spplotYAxis"
 const X_RANGE_CLASS = "spplotXAxis"
-
-
-class SimulationModel {
-    notional;
-    currency;
-    participationRate;
-    startLevel;
-    startDate;
-    startDateRaw;
-    endDate;
-    assetData;
-    fixing;
-
-    setNotional(notional) {
-        this.notional = notional;
-        return this;
-    }
-
-    setCurrency(currency) {
-        this.currency = currency;
-        return this;
-    }
-
-    setParticipationRate(participationRate) {
-        this.participationRate = participationRate;
-        return this;
-    }
-
-    setStartLevel(startLevel) {
-        this.startLevel = startLevel;
-        return this;
-    }
-
-    setKeyDates(keyDates) {
-        const mandatoryDates = ['startDate', 'endDate'];
-        mandatoryDates.forEach(mandatoryDate => {
-            if (!(Object.keys(keyDates).includes(mandatoryDate))) {
-                throw `Mandatory "${mandatoryDate}"-property is missing from the "keyDates" object.`;
-            }
-        });
-        // Parse key dates using d3
-        this.startDate = this.parseDate(keyDates.startDate);
-        this.startDateRaw = keyDates.startDate;
-        this.endDate = this.parseDate(keyDates.endDate);
-        return this;
-    }
-
-    setAssetData(assetData) {
-        // Set the fixing to startDate
-        const fixing = assetData.find(data => data.date === this.startDateRaw);
-
-        if (!fixing) {
-            this.fixin = null;
-            throw `Not possible to render graph since asset has no value for fixing date ${this.startDateRaw}.`;
-        }
-        this.fixing = {
-            date: this.parseDate(fixing.date),
-            value: Number(fixing.value)
-        }
-
-        this.assetData = assetData
-            .map(data => {
-                return {
-                    rawDate: data.date,
-                    date: this.parseDate(data.date),
-                    value: Number(data.value)
-                };
-            })
-            .filter(data => {
-                return data.date >= this.startDate && data.date <= this.endDate;
-            })
-            .map(data => {
-                return {
-                    date: data.date,
-                    value: 100 * data.value / this.fixing.value
-                };
-            });
-
-        return this;
-    }
-
-    parseDate(dateString) {
-        return d3.timeParse("%Y-%m-%d")(dateString);
-    }
-
-}
-
+const ASSET_DATA_CLASS = "spPlotAssetLine"
+const START_LINE_CLASS = "spPlotStartLine"
+const END_LINE_CLASS = "spPlotEndLine"
+const RETURN_PRICE_CLASS = "spPlotReturnedPrice"
 
 export class SimulationGraphPlotter {
     // Original inputs, mutable
+    initialized;
     productData;
     assetData;
 
@@ -145,17 +64,21 @@ export class SimulationGraphPlotter {
     yAxis;
     xRange;
     yRange;
-    dataLine;
     model;
-    path;
 
-    constructor(bindTarget, width, height, product, assetData, margin) {
-        this.bindTarget = bindTarget;
+    bind(bindTarget, width, height, product, margin) {
+        // Size of graph
         this.width = width;
         this.height = height;
+
+        // By default the y-axis is 0 to 200
+        this.yAxisDomain = [0, 200]
+
+        this.bindTarget = bindTarget;
         this.productData = product;
-        this.assetData = assetData;
         this.margin = margin;
+
+        return this;
     }
 
     _readData() {
@@ -164,15 +87,15 @@ export class SimulationGraphPlotter {
             .setCurrency(this.productData.currency)
             .setParticipationRate(this.productData.participationRate)
             .setStartLevel(this.productData.startLevel)
+            .setbarrierEvents(this.productData.barrierEvents)
             .setKeyDates(this.productData.keyDates);
         if (this.productData.assetData) {
             this.model.setAssetData(this.productData.assetData);
         }
     }
 
-    initialize() {
-        // Craete SVG element with margins
-        this._readData();
+    _initialize() {
+        // Create SVG element with margins
         this.svg = d3.select(this.bindTarget)
             .append("svg")
             .attr("width", this.width + this.margin.left + this.margin.right)
@@ -180,14 +103,14 @@ export class SimulationGraphPlotter {
             .append("g")
             .attr("transform", `translate(${this.margin.left},${this.margin.top})`);
 
-        this._initializeXAxis();
-        this._initializeYAxis();
+        this._initializeTimeScale();
+        this._initializeCouponBarrierScale();
     }
 
-    _initializeXAxis() {
+    _initializeTimeScale() {
         // Add x-axis
         this.xAxis = d3.scaleTime()
-            .domain([this.model.startDate, this.model.endDate])
+            .domain([this.model.startDate, this.model.finalMaturityDate])
             .range([0, this.width]);
 
         this.xRange = this.svg.append("g")
@@ -203,10 +126,20 @@ export class SimulationGraphPlotter {
             .text("Time");
     }
 
-    _initializeYAxis() {
+    _updateTimeScale() {
+        this.xAxis = d3.scaleTime()
+            .domain([this.model.startDate, this.model.finalMaturityDate])
+            .range([0, this.width]);
+
+        this.xRange.transition()
+            .duration(5000)
+            .call(d3.axisBottom(this.xAxis));
+    }
+
+    _initializeCouponBarrierScale() {
         // Add y-axis
         this.yAxis = d3.scaleLinear()
-            .domain([0, 200])
+            .domain(this.yAxisDomain)
             .range([this.height, 0]);
 
         this.yRange = this.svg.append("g")
@@ -222,50 +155,140 @@ export class SimulationGraphPlotter {
             .text("Coupon Level");
     }
 
-    updateAssetData(assetData) {
-        this.productData.assetData = assetData;
-        this._readData();
-        this._updateTimeScale();
-        this._updateAssetData();
+    _updateCouponBarrierScale() {
+        this.yAxis = d3.scaleLinear()
+            .domain(this.yAxisDomain)
+            .range([this.height, 0]);
+
+        this.yRange.transition()
+            .duration(5000)
+            .call(d3.axisLeft(this.yAxis));
+
     }
 
-    _updateTimeScale() {
-        this.xAxis = d3.scaleTime()
-            .domain([this.model.startDate, this.model.endDate])
-            .range([0, this.width]);
-
-        this.xRange.transition()
-            .duration(5000)
-            .call(d3.axisBottom(this.xAxis));
-
+    _updateCouponBarrierLimits() {
+        // When we have asset data, update the y-axis (coupon level axis) based on data max
+        if (this.model.assetData) {
+            const minAssetValue = 0.0;
+            const maxAssetValue = this.model.assetData.reduce(
+                (previousResult, currentValue) => Math.max(previousResult, currentValue.value),
+                minAssetValue);
+            this.yAxisDomain = [minAssetValue, maxAssetValue + 10];
+            this._updateCouponBarrierScale();
+        }
     }
 
     _updateAssetData() {
+        // When we have asset data, plot it
         if (this.model.assetData) {
-            this.dataLine = this.svg
-                .selectAll(".lineTest")
-                .data([this.model.assetData], d => d.value);
-
-            this.dataLine.enter()
-                .append("path")
-                .attr("class", "lineTest")
-                .merge(this.dataLine)
-                .transition()
-                .duration(5000)
-                .attr("d", d3.line()
-                    .x(d => this.xAxis(d.date))
-                    .y(d => this.yAxis(d.value)))
-                .attr("fill", "none")
-                .attr("stroke", "steelblue")
-                .attr("stroke-width", 2.5);
+            this._plotLine(this.model.assetData, ASSET_DATA_CLASS, "black", 1);
         }
+    }
+
+
+    _plotLine(data, identifier, strokeColor, strokeWidth) {
+        const dataLine = this.svg
+            .selectAll(`.${identifier}`)
+            .data([data], d => d.value);
+
+        dataLine.enter()
+            .append("path")
+            .attr("class", identifier)
+            .merge(dataLine)
+            .transition()
+            .duration(5000)
+            .attr("d", d3.line()
+                .x(d => this.xAxis(d.date))
+                .y(d => this.yAxis(d.value)))
+            .attr("fill", "none")
+            .attr("stroke", strokeColor)
+            .attr("stroke-width", strokeWidth);
+
+        return dataLine;
+    }
+
+    _plotDots(data, identifier, fillColor) {
+        const dots = this.svg
+            .selectAll(`circle.${identifier}`)
+            .data(data);
+
+        dots.enter()
+            .append("circle")
+            .attr("class", identifier)
+            .merge(dots)
+            .transition()
+            .duration(5000)
+            .attr("r", 3)
+            .attr("cy", d => this.yAxis(d.value))
+            .attr("cx", d => this.xAxis(d.date))
+            .style("fill", fillColor);
+
+        const label = this.svg
+            .selectAll(`.${identifier}Text`)
+            .data(data);
+
+        label.enter()
+            .append("title")
+            .attr("class", `${identifier}Text`)
+            .merge(label)
+            .transition()
+            .duration(5000)
+            .attr("r", 3)
+            .attr("cy", d => this.yAxis(d.value))
+            .attr("cx", d => this.xAxis(d.date))
+            .text(d => d.comment);
 
     }
 
+    _updateProductLevels() {
+        /*
+        * Start Level : Input in percent, straight line
+        * End Level: [Only when asset available] Whatever the asset is at the End Date
+        * Return Events: Various return events, indicated by dots
+        *  */
+
+        if (this.model.startLevel) {
+            const startLevelData = [
+                {date: this.model.startDate, value: 100.0 * Number(this.model.startLevel)},
+                {date: this.model.finalMaturityDate, value: 100.0 * Number(this.model.startLevel)}
+            ]
+
+            this._plotLine(startLevelData, START_LINE_CLASS, "green", 1);
+        }
+
+        if (this.model.endLevel) {
+            const endLevelData = [
+                {date: this.model.startDate, value: 100.0 * Number(this.model.endLevel)},
+                {date: this.model.finalMaturityDate, value: 100.0 * Number(this.model.endLevel)}
+            ]
+
+            this._plotLine(endLevelData, END_LINE_CLASS, "blue", 1);
+        }
+
+        if (this.model.returnEvents) {
+
+            const displayedReturnEvents = this.model.returnEvents.filter(data => data.executed === true);
+
+            this._plotDots(displayedReturnEvents,
+                RETURN_PRICE_CLASS,
+                "red");
+        }
+    }
+
     plot() {
+        // Lazy load the SVG & Axis
         this._readData();
-        this._updateTimeScale();
-        this._updateAssetData();
+        if (!this.initialized) {
+            this._initialize();
+            this.initialized = true;
+        }
+        // Graph scaling
+        this._updateTimeScale(); // Update X-axis
+        this._updateCouponBarrierLimits(); // Update Y-axis
+        // Underlying data
+        this._updateAssetData(); // Update asset data line
+        // Events
+        this._updateProductLevels(); // Update Start/End level lines
     }
 
 
