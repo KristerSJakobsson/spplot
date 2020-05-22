@@ -11,7 +11,8 @@ export class SimulationModel {
     finalMaturityDate;
     assetData;
     fixing; // Fixing value in original currency
-    returnEvents;
+    barrierEvents; // Barrier event data
+    returnEvents; // Events after executing
 
     setNotional(notional) {
         this.notional = Number(notional);
@@ -98,7 +99,7 @@ export class SimulationModel {
             });
 
         if (this.startLevel && this.endLevel) {
-            if (!this.participationRate) {
+            if (!this.participationRate && this.participationRate !== 0.0) {
                 console.warn(`Data is missing Participation Rate, assume 100%`)
                 this.participationRate = 1.0;
             }

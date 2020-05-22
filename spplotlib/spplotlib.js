@@ -41,29 +41,21 @@
 
  */
 
-import * as d3 from "d3";
 import {SimulationModel} from "./src/simulation-model.js"
+import {SimulationPlotter} from "./src/simulation-plotter.js"
 
 // CSS Classes
-const Y_RANGE_CLASS = "spplotYAxis"
-const X_RANGE_CLASS = "spplotXAxis"
 const ASSET_DATA_CLASS = "spPlotAssetLine"
 const START_LINE_CLASS = "spPlotStartLine"
 const END_LINE_CLASS = "spPlotEndLine"
+const BARRIER_EVENT_CLASS = "spPlotBarrierEventLines"
 const RETURN_PRICE_CLASS = "spPlotReturnedPrice"
 
 export class SimulationGraphPlotter {
     // Original inputs, mutable
-    initialized;
     productData;
     assetData;
-
-    // D3 graph controls
-    svg;
-    xAxis;
-    yAxis;
-    xRange;
-    yRange;
+    plotter;
     model;
 
     bind(bindTarget, width, height, product, margin) {
@@ -94,76 +86,8 @@ export class SimulationGraphPlotter {
         }
     }
 
-    _initialize() {
-        // Create SVG element with margins
-        this.svg = d3.select(this.bindTarget)
-            .append("svg")
-            .attr("width", this.width + this.margin.left + this.margin.right)
-            .attr("height", this.height + this.margin.top + this.margin.bottom)
-            .append("g")
-            .attr("transform", `translate(${this.margin.left},${this.margin.top})`);
-
-        this._initializeTimeScale();
-        this._initializeCouponBarrierScale();
-    }
-
-    _initializeTimeScale() {
-        // Add x-axis
-        this.xAxis = d3.scaleTime()
-            .domain([this.model.startDate, this.model.finalMaturityDate])
-            .range([0, this.width]);
-
-        this.xRange = this.svg.append("g")
-            .attr("transform", `translate(0,${this.height})`)
-            .call(d3.axisBottom(this.xAxis))
-            .attr("class", X_RANGE_CLASS);
-
-        // Add x-axis label
-        this.svg.append("text")
-            .attr("text-anchor", "end")
-            .attr("x", this.width)
-            .attr("y", this.height + this.margin.top + 20)
-            .text("Time");
-    }
-
     _updateTimeScale() {
-        this.xAxis = d3.scaleTime()
-            .domain([this.model.startDate, this.model.finalMaturityDate])
-            .range([0, this.width]);
-
-        this.xRange.transition()
-            .duration(5000)
-            .call(d3.axisBottom(this.xAxis));
-    }
-
-    _initializeCouponBarrierScale() {
-        // Add y-axis
-        this.yAxis = d3.scaleLinear()
-            .domain(this.yAxisDomain)
-            .range([this.height, 0]);
-
-        this.yRange = this.svg.append("g")
-            .call(d3.axisLeft(this.yAxis))
-            .attr("class", Y_RANGE_CLASS);
-
-        // Add y-axis label
-        this.svg.append("text")
-            .attr("text-anchor", "end")
-            .attr("transform", "rotate(-90)") // Note: Needed so that text does not rotate with axis
-            .attr("y", -this.margin.left + 20)
-            .attr("x", -this.margin.top)
-            .text("Coupon Level");
-    }
-
-    _updateCouponBarrierScale() {
-        this.yAxis = d3.scaleLinear()
-            .domain(this.yAxisDomain)
-            .range([this.height, 0]);
-
-        this.yRange.transition()
-            .duration(5000)
-            .call(d3.axisLeft(this.yAxis));
-
+        this.plotter.updateTimeScale(this.model.startDate, this.model.finalMaturityDate);
     }
 
     _updateCouponBarrierLimits() {
@@ -173,71 +97,15 @@ export class SimulationGraphPlotter {
             const maxAssetValue = this.model.assetData.reduce(
                 (previousResult, currentValue) => Math.max(previousResult, currentValue.value),
                 minAssetValue);
-            this.yAxisDomain = [minAssetValue, maxAssetValue + 10];
-            this._updateCouponBarrierScale();
+            this.plotter.updateCouponBarrierScale(minAssetValue, maxAssetValue + 10);
         }
     }
 
     _updateAssetData() {
         // When we have asset data, plot it
         if (this.model.assetData) {
-            this._plotLine(this.model.assetData, ASSET_DATA_CLASS, "black", 1);
+            this.plotter.plotAssetData(this.model.assetData, ASSET_DATA_CLASS, "black", 1);
         }
-    }
-
-
-    _plotLine(data, identifier, strokeColor, strokeWidth) {
-        const dataLine = this.svg
-            .selectAll(`.${identifier}`)
-            .data([data], d => d.value);
-
-        dataLine.enter()
-            .append("path")
-            .attr("class", identifier)
-            .merge(dataLine)
-            .transition()
-            .duration(5000)
-            .attr("d", d3.line()
-                .x(d => this.xAxis(d.date))
-                .y(d => this.yAxis(d.value)))
-            .attr("fill", "none")
-            .attr("stroke", strokeColor)
-            .attr("stroke-width", strokeWidth);
-
-        return dataLine;
-    }
-
-    _plotDots(data, identifier, fillColor) {
-        const dots = this.svg
-            .selectAll(`circle.${identifier}`)
-            .data(data);
-
-        dots.enter()
-            .append("circle")
-            .attr("class", identifier)
-            .merge(dots)
-            .transition()
-            .duration(5000)
-            .attr("r", 3)
-            .attr("cy", d => this.yAxis(d.value))
-            .attr("cx", d => this.xAxis(d.date))
-            .style("fill", fillColor);
-
-        const label = this.svg
-            .selectAll(`.${identifier}Text`)
-            .data(data);
-
-        label.enter()
-            .append("title")
-            .attr("class", `${identifier}Text`)
-            .merge(label)
-            .transition()
-            .duration(5000)
-            .attr("r", 3)
-            .attr("cy", d => this.yAxis(d.value))
-            .attr("cx", d => this.xAxis(d.date))
-            .text(d => d.comment);
-
     }
 
     _updateProductLevels() {
@@ -253,7 +121,7 @@ export class SimulationGraphPlotter {
                 {date: this.model.finalMaturityDate, value: 100.0 * Number(this.model.startLevel)}
             ]
 
-            this._plotLine(startLevelData, START_LINE_CLASS, "green", 1);
+            this.plotter.plotHorizontalLine(startLevelData, START_LINE_CLASS, "green", 1);
         }
 
         if (this.model.endLevel) {
@@ -262,14 +130,18 @@ export class SimulationGraphPlotter {
                 {date: this.model.finalMaturityDate, value: 100.0 * Number(this.model.endLevel)}
             ]
 
-            this._plotLine(endLevelData, END_LINE_CLASS, "blue", 1);
+            this.plotter.plotHorizontalLine(endLevelData, END_LINE_CLASS, "blue", 1);
+        }
+
+        if (this.model.barrierEvents) {
+            this.plotter.plotBarrierLines(this.model.barrierEvents, BARRIER_EVENT_CLASS, "orange");
         }
 
         if (this.model.returnEvents) {
 
-            const displayedReturnEvents = this.model.returnEvents.filter(data => data.executed === true);
+            const executedReturnEvents = this.model.returnEvents.filter(data => data.executed === true);
 
-            this._plotDots(displayedReturnEvents,
+            this.plotter.plotDots(executedReturnEvents,
                 RETURN_PRICE_CLASS,
                 "red");
         }
@@ -278,9 +150,12 @@ export class SimulationGraphPlotter {
     plot() {
         // Lazy load the SVG & Axis
         this._readData();
-        if (!this.initialized) {
-            this._initialize();
-            this.initialized = true;
+        if (!this.plotter) {
+            this.plotter = new SimulationPlotter(
+                this.bindTarget,
+                this.width,
+                this.height,
+                this.margin);
         }
         // Graph scaling
         this._updateTimeScale(); // Update X-axis

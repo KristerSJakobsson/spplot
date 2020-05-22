@@ -11,7 +11,7 @@
                                   @change="onChange"
                                   :state="validatedIncomeBarrier"
                                   v-model="incomeBarrier"
-                                  placeholder="Enter Participation Rate as a percentage.">
+                                  placeholder="Enter Income Barrier as a percentage.">
                     </b-form-input>
                 </b-input-group>
             </b-col>
@@ -24,19 +24,22 @@
             <b-col sm="9">
                 <b-input-group class="mb-2 mr-sm-2 mb-sm-0">
                     <b-form-spinbutton id="input-number-of-income-events"
+                                       min="0"
+                                       step="1"
                                        v-model="numberOfIncomeEvents"
                                        @change="updateEvents"></b-form-spinbutton>
                 </b-input-group>
             </b-col>
         </b-row>
-        <template v-for="event in eventDates">
-            <b-row v-if="event.visible" v-bind:key="event.index">
-                <b-col sm="3">
-                </b-col>
-                <b-col sm="6">
-                    <b-input-group>
-                        <b-form-datepicker @input="barrierDateChanged(event.index)"
+        <b-row cols="2">
+            <template v-for="event in eventDates">
+                <b-col v-if="event.visible" v-bind:key="event.index" sm="6">
+                    <b-card bg-variant="light" class="text-center">
+                        <b-form-datepicker @input="barrierDataChanged(event.index)"
                                            v-model="event.date"
+                                           size="sm"
+                                           :date-format-options="{ year: 'numeric', month: 'numeric', day: 'numeric' }"
+                                           locale="se"
                                            :min="startDate"
                                            :max="finalMaturityDate">
                         </b-form-datepicker>
@@ -44,20 +47,58 @@
                         <b-form-invalid-feedback id="input-live-feedback">
                             Barrier Income events need to be between Start Date and End Date.
                         </b-form-invalid-feedback>
+
                         <b-input-group append="%">
+                                <b-form-radio-group
+                                        id="btn-radios-1"
+                                        buttons
+                                        v-model="event.couponType"
+                                        name="radios-btn-default"
+                                        @change="barrierDataChanged(event.index)">
+                                    <b-form-radio value="fixed">Fixed</b-form-radio>
+                                    <b-form-radio value="relative">Relative</b-form-radio>
+                                </b-form-radio-group>
                             <b-form-input id="input-start-level"
                                           type="number"
-                                          placeholder="Enter Participation Rate as a percentage.">
+                                          @change="barrierDataChanged(event.index)"
+                                          :disabled="event.couponType === 'fixed'"
+                                          v-model="event.couponPayoff"
+                                          placeholder="Coupon Payoff">
                             </b-form-input>
                         </b-input-group>
-                        <b-button v-b-modal="`barrier-event-modal-${event.index}}`">Details</b-button>
-                    </b-input-group>
+                    </b-card>
                 </b-col>
-                <b-modal :id="`barrier-event-modal-${event.index}}`" title="BootstrapVue">
-                    <p class="my-4">Hello from modal {{event.index}}!</p>
-                </b-modal>
-            </b-row>
-        </template>
+            </template>
+        </b-row>
+        <!--        <template v-for="event in eventDates">-->
+        <!--            <b-row v-if="event.visible" v-bind:key="event.index">-->
+        <!--                <b-col sm="3">-->
+        <!--                </b-col>-->
+        <!--                <b-col sm="6">-->
+        <!--                    <b-input-group>-->
+        <!--                        <b-form-datepicker @input="barrierDateChanged(event.index)"-->
+        <!--                                           v-model="event.date"-->
+        <!--                                           :min="startDate"-->
+        <!--                                           :max="finalMaturityDate">-->
+        <!--                        </b-form-datepicker>-->
+        <!--                        &lt;!&ndash; This will only be shown if the preceding input has an invalid state &ndash;&gt;-->
+        <!--                        <b-form-invalid-feedback id="input-live-feedback">-->
+        <!--                            Barrier Income events need to be between Start Date and End Date.-->
+        <!--                        </b-form-invalid-feedback>-->
+        <!--                        <b-input-group append="%">-->
+        <!--                            <b-form-input id="input-start-level"-->
+        <!--                                          type="number"-->
+        <!--                                          placeholder="Enter Participation Rate as a percentage.">-->
+        <!--                            </b-form-input>-->
+        <!--                        </b-input-group>-->
+        <!--                        <b-button v-b-modal="`barrier-event-modal-${event.index}}`">Details</b-button>-->
+        <!--                    </b-input-group>-->
+        <!--                </b-col>-->
+        <!--                <b-modal :id="`barrier-event-modal-${event.index}}`" title="BootstrapVue">-->
+        <!--                    <p class="my-4">Hello from modal {{event.index}}!</p>-->
+        <!--                </b-modal>-->
+        <!--            </b-row>-->
+        <!--        </template>-->
     </b-container>
 </template>
 
@@ -101,13 +142,15 @@
                     .map(value => {
                         return {
                             date: value.date,
-                            value: this.incomeBarrier
+                            value: this.incomeBarrier,
+                            couponType: value.couponType,
+                            couponPayoff: value.couponPayoff
                         };
                     });
 
                 this.$emit('change', barrierEvents);
             },
-            barrierDateChanged(index) {
+            barrierDataChanged(index) {
                 this.eventDates[index].default = false;
                 this.onChange();
             },
@@ -142,7 +185,9 @@
                             date: dateString,
                             visible: true,
                             default: true,
-                            index: index
+                            index: index,
+                            couponType: "fixed",
+                            couponPayoff: 4
                         }
                         this.eventDates.push(result);
                     }
