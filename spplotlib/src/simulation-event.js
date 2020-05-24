@@ -1,4 +1,5 @@
 // import * as d3 from "d3";
+import {formatDate} from "./date-utils.js";
 
 export class Event {
     date
@@ -19,28 +20,26 @@ export class FinalMaturityEvent extends Event {
 
         this.date = finalMaturityDate;
         this.value = finalReturnValue;
-        this.comment = `Return on Maturity: ${finalReturnValue.toFixed(2)}%`;
+        this.comment = `Date: ${formatDate(finalMaturityDate)}<br>Return on Maturity: ${finalReturnValue.toFixed(2)}%`;
         this.executed = true; // Always executed
     }
 }
 
 export class IncomeEvent extends Event {
 
-    constructor(eventDate, assetValue, barrierLevel, coupon) {
+    constructor(eventDate, assetValue, barrierLevel, couponType, couponPayoff) {
         super();
         const difference = assetValue - barrierLevel;
-
         let couponValue;
-        if (typeof coupon === "function") {
-            couponValue = coupon();
-        }
-        else {
-            couponValue = coupon;
+        if (couponType === "relative") {
+            couponValue = difference;
+        } else {
+            couponValue = couponPayoff;
         }
 
         this.date = eventDate;
         this.value = barrierLevel;
-        this.comment = `Income Event: ${couponValue.toFixed(2)}%`;
+        this.comment = `Date: ${formatDate(eventDate)}<br>Income Event: ${couponValue.toFixed(2)}%`;
         this.executed = difference >= 0.0;
     }
 }

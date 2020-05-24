@@ -1,27 +1,10 @@
 <template>
     <b-container>
         <b-row>
-            <b-col sm="3">
-                <label for="input-income-barrier">Income Barrier:</label>
+            <b-col sm="4">
+                <label for="input-number-of-income-events">Number of Income Events:</label>
             </b-col>
-            <b-col sm="9">
-                <b-input-group append="%" class="mb-2 mr-sm-2 mb-sm-0">
-                    <b-form-input id="input-income-barrier"
-                                  type="number"
-                                  @change="onChange"
-                                  :state="validatedIncomeBarrier"
-                                  v-model="incomeBarrier"
-                                  placeholder="Enter Income Barrier as a percentage.">
-                    </b-form-input>
-                </b-input-group>
-            </b-col>
-        </b-row>
-
-        <b-row>
-            <b-col sm="3">
-                <label for="input-number-of-income-events">Income Events:</label>
-            </b-col>
-            <b-col sm="9">
+            <b-col sm="8">
                 <b-input-group class="mb-2 mr-sm-2 mb-sm-0">
                     <b-form-spinbutton id="input-number-of-income-events"
                                        min="0"
@@ -35,6 +18,14 @@
             <template v-for="event in eventDates">
                 <b-col v-if="event.visible" v-bind:key="event.index" sm="6">
                     <b-card bg-variant="light" class="text-center">
+                        <b-input-group append="%" class="mb-2 mr-sm-2 mb-sm-0">
+                            <b-form-input type="number"
+                                          @change="barrierDataChanged(event.index)"
+                                          :state="validatedIncomeBarrier(event.index)"
+                                          v-model="event.incomeBarrier"
+                                          placeholder="Enter Income Barrier as a percentage.">
+                            </b-form-input>
+                        </b-input-group>
                         <b-form-datepicker @input="barrierDataChanged(event.index)"
                                            v-model="event.date"
                                            size="sm"
@@ -50,7 +41,6 @@
 
                         <b-input-group append="%">
                                 <b-form-radio-group
-                                        id="btn-radios-1"
                                         buttons
                                         v-model="event.couponType"
                                         name="radios-btn-default"
@@ -61,7 +51,7 @@
                             <b-form-input id="input-start-level"
                                           type="number"
                                           @change="barrierDataChanged(event.index)"
-                                          :disabled="event.couponType === 'fixed'"
+                                          :disabled="event.couponType === 'relative'"
                                           v-model="event.couponPayoff"
                                           placeholder="Coupon Payoff">
                             </b-form-input>
@@ -113,11 +103,9 @@
             finalMaturityDate: String
         },
         data() {
-            const defaultIncomeBarrier = 100;
             const defaultEventDates = []
 
             return {
-                incomeBarrier: defaultIncomeBarrier,
                 numberOfIncomeEvents: defaultEventDates.length,
                 eventDates: defaultEventDates
             }
@@ -129,11 +117,6 @@
                 this.onChange();
             })
         },
-        computed: {
-            validatedIncomeBarrier() {
-                return validBarrier(this.incomeBarrier);
-            }
-        },
         methods: {
             onChange() {
                 // Re-raise the change event for this component
@@ -142,13 +125,16 @@
                     .map(value => {
                         return {
                             date: value.date,
-                            value: this.incomeBarrier,
+                            incomeBarrier: value.incomeBarrier,
                             couponType: value.couponType,
                             couponPayoff: value.couponPayoff
                         };
                     });
 
                 this.$emit('change', barrierEvents);
+            },
+            validatedIncomeBarrier(index) {
+                return validBarrier(this.eventDates[index].incomeBarrier);
             },
             barrierDataChanged(index) {
                 this.eventDates[index].default = false;
@@ -186,7 +172,8 @@
                             visible: true,
                             default: true,
                             index: index,
-                            couponType: "fixed",
+                            incomeBarrier: 100,
+                            couponType: "relative",
                             couponPayoff: 4
                         }
                         this.eventDates.push(result);

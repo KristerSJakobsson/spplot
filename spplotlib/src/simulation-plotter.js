@@ -16,11 +16,14 @@ export class SimulationPlotter {
     width;
     height;
     margin;
+    tooltip;
+    bindTarget;
 
     constructor(bindTarget, width, height, margin) {
         this.width = width;
         this.height = height;
         this.margin = margin;
+        this.bindTarget = bindTarget;
 
         // Create SVG element with margins
         this.svg = d3.select(bindTarget)
@@ -29,6 +32,18 @@ export class SimulationPlotter {
             .attr("height", height + margin.top + margin.bottom)
             .append("g")
             .attr("transform", `translate(${margin.left}, ${margin.top})`);
+
+        // You can't append a div to svg so you have to create a container
+        // This is why we do d3.select instead of this.svg below:
+        this.tooltip = d3.select(bindTarget)
+            .append("div")
+            .attr("class", "tooltip")
+            .style("opacity", 0)
+            .style("background-color", "white")
+            .style("border", "solid")
+            .style("border-width", "2px")
+            .style("border-radius", "5px")
+            .style("padding", "5px");
 
         this._initializeTimeScale();
         this._initializeCouponBarrierScale();
@@ -107,6 +122,7 @@ export class SimulationPlotter {
             .transition()
             .duration(5000)
             .attr("d", d3.line()
+                .curve(d3.curveStepBefore)
                 .x(d => this.xAxis(d.date))
                 .y(d => this.yAxis(d.value)))
             .attr("fill", "none")
@@ -182,12 +198,44 @@ export class SimulationPlotter {
     }
 
     plotDots(data, identifier, fillColor) {
+
+        const tooltip = this.tooltip;
+        const margin = this.margin;
+
+
+        // Three function that change the tooltip when user hover / move / leave a cell
+        const mouseover = function () {
+            // Add black outline when entering circle
+            tooltip.style("opacity", 1)
+            d3.select(this)
+                .style("stroke", "black")
+                .style("opacity", 1)
+        }
+        const mousemove = function (data) {
+            // Show pop-up tooltip
+            tooltip.html(data.comment)
+                .style("opacity", 1)
+                .style("left", `${margin.left + d3.mouse(this)[0]}px`)
+                .style("top", `${margin.top + d3.mouse(this)[1]}px`);
+        }
+        const mouseleave = function () {
+            // Remove black outline when entering circle
+            tooltip
+                .style("opacity", 0)
+            d3.select(this)
+                .style("stroke", "none")
+                .style("opacity", 0.8)
+        }
+
         const dots = this.svg
             .selectAll(`circle.${identifier}`)
             .data(data);
 
         dots.enter()
             .append("circle")
+            .on("mouseover", mouseover)
+            .on("mousemove", mousemove)
+            .on("mouseleave", mouseleave)
             .attr("class", identifier)
             .merge(dots)
             .transition()
@@ -196,21 +244,6 @@ export class SimulationPlotter {
             .attr("cy", d => this.yAxis(d.value))
             .attr("cx", d => this.xAxis(d.date))
             .style("fill", fillColor);
-
-        const label = this.svg
-            .selectAll(`.${identifier}Text`)
-            .data(data);
-
-        label.enter()
-            .append("title")
-            .attr("class", `${identifier}Text`)
-            .merge(label)
-            .transition()
-            .duration(5000)
-            .attr("r", 3)
-            .attr("cy", d => this.yAxis(d.value))
-            .attr("cx", d => this.xAxis(d.date))
-            .text(d => d.comment);
 
     }
 

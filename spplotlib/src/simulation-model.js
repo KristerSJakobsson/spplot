@@ -47,12 +47,14 @@ export class SimulationModel {
         return this;
     }
 
-    setbarrierEvents(barrierEvents) {
+    setBarrierEvents(barrierEvents) {
         if (barrierEvents) {
             this.barrierEvents = barrierEvents.map(data => {
                 return {
                     date: parseDate(data.date),
-                    value: Number(data.value)
+                    incomeBarrier: Number(data.incomeBarrier),
+                    couponType: data.couponType,
+                    couponPayoff: Number(data.couponPayoff)
                 };
             });
         }
@@ -110,24 +112,29 @@ export class SimulationModel {
     }
 
     _calculate_return_events() {
-        const returnEvents = this.barrierEvents.map(data => {
+        const returnEvents = this.barrierEvents.map(event => {
             // Find the last date before the event date
             const eventAssetData = this.assetData.reduce(
                 (previous, current) => {
-                    if (current.date <= data.date && previous.date < current.date) {
+                    if (current.date <= event.date && previous.date < current.date) {
                         return current;
                     }
                     return previous;
                 },
                 this.assetData[0]);
 
-            const eventDate = data.date;
+            const eventDate = event.date;
             const replacementDate = eventAssetData.date;
             if (eventDate !== replacementDate) {
                 console.warn(`The selected underlying is missing data for event date ${eventDate}, used value for previous date ${replacementDate}.`)
             }
 
-            return new IncomeEvent(eventAssetData.date, eventAssetData.value, data.value, 4);
+            return new IncomeEvent(
+                event.date,
+                eventAssetData.value,
+                event.incomeBarrier,
+                event.couponType,
+                event.couponPayoff);
         });
 
         const finalMaturityEvent = new FinalMaturityEvent(this.finalMaturityDate, this.startLevel, this.endLevel, this.participationRate);

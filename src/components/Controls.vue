@@ -61,7 +61,6 @@
                     startLevel: null,
                     currency: null,
                     assetData: null,
-                    incomeBarrier: null,
                     barrierEvents: []
                 }
             }

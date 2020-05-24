@@ -63,9 +63,6 @@ export class SimulationGraphPlotter {
         this.width = width;
         this.height = height;
 
-        // By default the y-axis is 0 to 200
-        this.yAxisDomain = [0, 200]
-
         this.bindTarget = bindTarget;
         this.productData = product;
         this.margin = margin;
@@ -79,7 +76,7 @@ export class SimulationGraphPlotter {
             .setCurrency(this.productData.currency)
             .setParticipationRate(this.productData.participationRate)
             .setStartLevel(this.productData.startLevel)
-            .setbarrierEvents(this.productData.barrierEvents)
+            .setBarrierEvents(this.productData.barrierEvents)
             .setKeyDates(this.productData.keyDates);
         if (this.productData.assetData) {
             this.model.setAssetData(this.productData.assetData);
@@ -134,7 +131,14 @@ export class SimulationGraphPlotter {
         }
 
         if (this.model.barrierEvents) {
-            this.plotter.plotBarrierLines(this.model.barrierEvents, BARRIER_EVENT_CLASS, "orange");
+            const plotBarriers = this.model.barrierEvents.map(event => {
+                return {
+                    value: event.incomeBarrier,
+                    date: event.date
+                }
+            });
+
+            this.plotter.plotBarrierLines(plotBarriers, BARRIER_EVENT_CLASS, "orange");
         }
 
         if (this.model.returnEvents) {
