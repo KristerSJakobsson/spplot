@@ -143,11 +143,11 @@ export class SimulationGraphPlotter {
 
         if (this.model.returnEvents) {
 
-            const executedReturnEvents = this.model.returnEvents.filter(data => data.executed === true);
+            const executedReturnEvents = this.model.returnEvents;
 
             this.plotter.plotDots(executedReturnEvents,
                 RETURN_PRICE_CLASS,
-                "red");
+                d => d.executed === true ? "green" : "gray");
         }
     }
 

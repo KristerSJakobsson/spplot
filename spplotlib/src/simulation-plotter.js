@@ -7,6 +7,8 @@ const X_RANGE_CLASS = "spplotXAxis";
 const X_LABEL = "Time";
 const Y_LABEL = "Coupon Level";
 
+const TRANSFORMATION_SPEED = 500;
+
 export class SimulationPlotter {
     svg;
     xAxis;
@@ -74,7 +76,7 @@ export class SimulationPlotter {
             .range([0, this.width]);
 
         this.xRange.transition()
-            .duration(5000)
+            .duration(TRANSFORMATION_SPEED)
             .call(d3.axisBottom(this.xAxis));
     }
 
@@ -103,7 +105,7 @@ export class SimulationPlotter {
             .range([this.height, 0]);
 
         this.yRange.transition()
-            .duration(5000)
+            .duration(TRANSFORMATION_SPEED)
             .call(d3.axisLeft(this.yAxis));
 
     }
@@ -120,7 +122,7 @@ export class SimulationPlotter {
             .attr("class", identifier)
             .merge(dataLine)
             .transition()
-            .duration(5000)
+            .duration(TRANSFORMATION_SPEED)
             .attr("d", d3.line()
                 .curve(d3.curveStepBefore)
                 .x(d => this.xAxis(d.date))
@@ -142,7 +144,7 @@ export class SimulationPlotter {
             .attr("class", identifier)
             .merge(dataLine)
             .transition()
-            .duration(5000)
+            .duration(TRANSFORMATION_SPEED)
             .attr("d", d3.line()
                 .x(d => this.xAxis(d.date))
                 .y(d => this.yAxis(d.value)))
@@ -165,7 +167,7 @@ export class SimulationPlotter {
                 // Move existing line
                 d3.select(existingLines[index])
                     .transition()
-                    .duration(5000)
+                    .duration(TRANSFORMATION_SPEED)
                     .attr("x1", this.xAxis(data[index].date))
                     .attr("x2", this.xAxis(data[index].date))
                     .attr("y1", this.yAxis(0.0))
@@ -183,13 +185,13 @@ export class SimulationPlotter {
                     .attr("fill", "none")
                     .attr("stroke", strokeColor)
                     .transition()
-                    .duration(5000)
+                    .duration(TRANSFORMATION_SPEED)
                     .attr("y2", this.yAxis(data[index].value));
             } else {
                 // Delete existing line
                 d3.select(existingLines[index])
                     .transition()
-                    .duration(5000)
+                    .duration(TRANSFORMATION_SPEED)
                     .attr("y2", this.yAxis(0.0))
                     .remove();
             }
@@ -228,7 +230,7 @@ export class SimulationPlotter {
         }
 
         const dots = this.svg
-            .selectAll(`circle.${identifier}`)
+            .selectAll(`.${identifier}`)
             .data(data);
 
         dots.enter()
@@ -239,7 +241,7 @@ export class SimulationPlotter {
             .attr("class", identifier)
             .merge(dots)
             .transition()
-            .duration(5000)
+            .duration(TRANSFORMATION_SPEED)
             .attr("r", 3)
             .attr("cy", d => this.yAxis(d.value))
             .attr("cx", d => this.xAxis(d.date))

@@ -54,7 +54,8 @@ export class SimulationModel {
                     date: parseDate(data.date),
                     incomeBarrier: Number(data.incomeBarrier),
                     couponType: data.couponType,
-                    couponPayoff: Number(data.couponPayoff)
+                    couponPayoff: Number(data.couponPayoff),
+                    isMemory: Boolean(data.isMemory)
                 };
             });
         }
@@ -112,7 +113,9 @@ export class SimulationModel {
     }
 
     _calculate_return_events() {
-        const returnEvents = this.barrierEvents.map(event => {
+        let returnEvents = [];
+
+        this.barrierEvents.forEach(event => {
             // Find the last date before the event date
             const eventAssetData = this.assetData.reduce(
                 (previous, current) => {
@@ -129,12 +132,16 @@ export class SimulationModel {
                 console.warn(`The selected underlying is missing data for event date ${eventDate}, used value for previous date ${replacementDate}.`)
             }
 
-            return new IncomeEvent(
+            const incomeEvent = new IncomeEvent(
                 event.date,
                 eventAssetData.value,
                 event.incomeBarrier,
                 event.couponType,
-                event.couponPayoff);
+                event.couponPayoff,
+                event.isMemory,
+                returnEvents);
+
+            returnEvents.push(incomeEvent);
         });
 
         const finalMaturityEvent = new FinalMaturityEvent(this.finalMaturityDate, this.startLevel, this.endLevel, this.participationRate);

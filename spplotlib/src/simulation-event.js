@@ -13,10 +13,10 @@ export class FinalMaturityEvent extends Event {
 
     constructor(finalMaturityDate, startLevel, endLevel, participationRate) {
         super();
-        const difference = endLevel - startLevel;
 
-        const finalReturnEvent = startLevel + (Math.max(0.0, difference) * participationRate);
-        const finalReturnValue = finalReturnEvent * 100.0
+
+        const difference = endLevel - startLevel;
+        const finalReturnValue = 100.0  * (startLevel + (Math.max(0.0, difference) * participationRate));
 
         this.date = finalMaturityDate;
         this.value = finalReturnValue;
@@ -27,20 +27,37 @@ export class FinalMaturityEvent extends Event {
 
 export class IncomeEvent extends Event {
 
-    constructor(eventDate, assetValue, barrierLevel, couponType, couponPayoff) {
+    constructor(eventDate, assetValue, barrierLevel, couponType, couponPayoff, isMemory, pastEvents) {
         super();
+
         const difference = assetValue - barrierLevel;
-        let couponValue;
+        const executed = difference >= 0.0;
+
+        let payoff;
         if (couponType === "relative") {
-            couponValue = difference;
+            payoff = Math.max(difference, 0.0);
         } else {
-            couponValue = couponPayoff;
+            payoff = couponPayoff;
         }
 
+        if (executed === true && isMemory === true) {
+            // Memory feature, recover any previously lost income events
+            for (let index = pastEvents.length - 1; index >= 0; index--) {
+                if (pastEvents[index].executed) break;
+
+                payoff += pastEvents[index].payoff;
+            }
+        }
+
+        this.payoff = payoff;
+        this.executed = executed;
         this.date = eventDate;
         this.value = barrierLevel;
-        this.comment = `Date: ${formatDate(eventDate)}<br>Income Event: ${couponValue.toFixed(2)}%`;
-        this.executed = difference >= 0.0;
+        this.comment = `Date: ${formatDate(eventDate)}`;
+        this.comment += `<br>Income Payment: ${payoff.toFixed(2)}%`;
+        if (!this.executed) {
+            this.comment += `<br>Not Executed`;
+        }
     }
 }
 

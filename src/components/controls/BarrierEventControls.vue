@@ -11,6 +11,14 @@
                                        step="1"
                                        v-model="numberOfIncomeEvents"
                                        @change="updateEvents"></b-form-spinbutton>
+                    <b-form-radio-group
+                            buttons
+                            v-model="isMemory"
+                            name="radios-btn-default"
+                            @input="updateIsMemory">
+                        <b-form-radio value=false>Normal</b-form-radio>
+                        <b-form-radio value=true>Memory</b-form-radio>
+                    </b-form-radio-group>
                 </b-input-group>
             </b-col>
         </b-row>
@@ -44,7 +52,7 @@
                                         buttons
                                         v-model="event.couponType"
                                         name="radios-btn-default"
-                                        @change="barrierDataChanged(event.index)">
+                                        @input="barrierDataChanged(event.index)">
                                     <b-form-radio value="fixed">Fixed</b-form-radio>
                                     <b-form-radio value="relative">Relative</b-form-radio>
                                 </b-form-radio-group>
@@ -60,35 +68,6 @@
                 </b-col>
             </template>
         </b-row>
-        <!--        <template v-for="event in eventDates">-->
-        <!--            <b-row v-if="event.visible" v-bind:key="event.index">-->
-        <!--                <b-col sm="3">-->
-        <!--                </b-col>-->
-        <!--                <b-col sm="6">-->
-        <!--                    <b-input-group>-->
-        <!--                        <b-form-datepicker @input="barrierDateChanged(event.index)"-->
-        <!--                                           v-model="event.date"-->
-        <!--                                           :min="startDate"-->
-        <!--                                           :max="finalMaturityDate">-->
-        <!--                        </b-form-datepicker>-->
-        <!--                        &lt;!&ndash; This will only be shown if the preceding input has an invalid state &ndash;&gt;-->
-        <!--                        <b-form-invalid-feedback id="input-live-feedback">-->
-        <!--                            Barrier Income events need to be between Start Date and End Date.-->
-        <!--                        </b-form-invalid-feedback>-->
-        <!--                        <b-input-group append="%">-->
-        <!--                            <b-form-input id="input-start-level"-->
-        <!--                                          type="number"-->
-        <!--                                          placeholder="Enter Participation Rate as a percentage.">-->
-        <!--                            </b-form-input>-->
-        <!--                        </b-input-group>-->
-        <!--                        <b-button v-b-modal="`barrier-event-modal-${event.index}}`">Details</b-button>-->
-        <!--                    </b-input-group>-->
-        <!--                </b-col>-->
-        <!--                <b-modal :id="`barrier-event-modal-${event.index}}`" title="BootstrapVue">-->
-        <!--                    <p class="my-4">Hello from modal {{event.index}}!</p>-->
-        <!--                </b-modal>-->
-        <!--            </b-row>-->
-        <!--        </template>-->
     </b-container>
 </template>
 
@@ -107,7 +86,8 @@
 
             return {
                 numberOfIncomeEvents: defaultEventDates.length,
-                eventDates: defaultEventDates
+                eventDates: defaultEventDates,
+                isMemory: "false"
             }
         },
         mounted() {
@@ -121,15 +101,7 @@
             onChange() {
                 // Re-raise the change event for this component
                 const barrierEvents = this.eventDates
-                    .filter(value => value.visible === true)
-                    .map(value => {
-                        return {
-                            date: value.date,
-                            incomeBarrier: value.incomeBarrier,
-                            couponType: value.couponType,
-                            couponPayoff: value.couponPayoff
-                        };
-                    });
+                    .filter(value => value.visible === true);
 
                 this.$emit('change', barrierEvents);
             },
@@ -141,29 +113,25 @@
                 this.onChange();
             },
             updateEvents() {
+                const startDate = moment(this.startDate);
+                const endDate = moment(this.finalMaturityDate);
+
                 const numberOfStoredEvents = this.eventDates.length;
-                const numberOfSelectedEvents = this.numberOfIncomeEvents;
 
-                const start = moment(this.startDate);
-                const end = moment(this.finalMaturityDate);
+                const difference = endDate.diff(startDate, 'days');
+                const interval = Math.round(difference / (this.numberOfIncomeEvents + 1));
 
-                const difference = end.diff(start, 'days');
-                const interval = Math.round(difference / (numberOfSelectedEvents + 1));
-
-                for (let index = 0; index < Math.max(numberOfSelectedEvents, numberOfStoredEvents); ++index) {
+                for (let index = 0; index < Math.max(this.numberOfIncomeEvents, numberOfStoredEvents); ++index) {
 
                     // If we have data for more events than are shown, set them to hidden
-                    if (index >= numberOfSelectedEvents) {
-                        this.eventDates[index].visible = false;
-                        continue;
-                    } else if (index < numberOfStoredEvents) {
-                        this.eventDates[index].visible = true;
-                        continue;
+                    if (index < numberOfStoredEvents) {
+                        this.eventDates[index].visible = index < this.numberOfIncomeEvents;
                     }
-                    const date = start.add((index + 1) * interval, 'days')
+                    const date = startDate.add(interval, 'd')
                     const dateString = date.format("YYYY-MM-DD");
                     if (index < this.eventDates.length) {
                         if (this.eventDates[index].default) {
+                            // If the value is the default value, change it
                             this.eventDates[index].date = dateString;
                         }
                     } else {
@@ -174,11 +142,19 @@
                             index: index,
                             incomeBarrier: 100,
                             couponType: "relative",
-                            couponPayoff: 4
-                        }
+                            couponPayoff: 4,
+                            isMemory: this.isMemory === "true"
+                        };
                         this.eventDates.push(result);
                     }
                 }
+                this.onChange();
+            },
+            updateIsMemory() {
+                this.eventDates = this.eventDates.map(data => {
+                    data.isMemory = this.isMemory === "true"
+                    return data;
+                });
                 this.onChange();
             }
         }

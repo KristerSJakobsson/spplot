@@ -84,17 +84,7 @@
             },
             barrierEventControlChange(barrierEvents) {
                 this.payload.barrierEvents = barrierEvents;
-            },
-            // payloadChanged(newPayload) {
-            //     this.payload = newPayload;
-            //     this.startDate = newPayload.keyDates.startDate;
-            //     this.finalMaturityDate = newPayload.keyDates.finalMaturityDate;
-            //     this.notional = this.formatNotional(newPayload.notional);
-            //     this.participationRate = this.formatPercentage(newPayload.participationRate);
-            //     this.incomeBarrier = this.formatPercentage(newPayload.incomeBarrier);
-            //     this.startLevel = this.formatPercentage(newPayload.startLevel);
-            //     this.currency = this.formatCurrency(newPayload.currency);
-            // },
+            }
         }
     }
 </script>
