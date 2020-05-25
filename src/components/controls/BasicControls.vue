@@ -2,7 +2,7 @@
     <b-container>
         <b-row>
             <b-col sm="3">
-                <label for="input-start-date">Start Date:</label>
+                <label for="input-start-date">Start:</label>
             </b-col>
             <b-col sm="9">
                 <b-form-datepicker id="input-start-date"
@@ -19,7 +19,7 @@
         </b-row>
         <b-row>
             <b-col sm="3">
-                <label for="input-final-maturity-event">Final Maturity Date:</label>
+                <label for="input-final-maturity-event">Final Maturity:</label>
             </b-col>
             <b-col sm="9">
                 <b-form-datepicker id="input-final-maturity-event"
@@ -84,22 +84,11 @@
 
     export default {
         name: "BasicControls",
+        props: {
+            payload: Object
+        },
         data() {
-            const defaultCurrency = "USD";
-            const defaultStartDate = "2019-03-01";
-            const defaultFinalMaturityDate = "2020-03-02";
-            const defaultParticipationRate = 50;
-            const defaultStartLevel = 100;
-            const defaultNotional = 10000;
-
-            return {
-                startDate: defaultStartDate,
-                finalMaturityDate: defaultFinalMaturityDate,
-                notional: defaultNotional,
-                participationRate: defaultParticipationRate,
-                startLevel: defaultStartLevel,
-                currency: defaultCurrency
-            }
+            return this.loadPayload();
         },
         mounted() {
             this.$nextTick(function () {
@@ -135,7 +124,25 @@
                 return validNotional(this.notional);
             }
         },
+        watch: {
+            payload: {
+                deep: true,
+                handler() {
+                    this.loadPayload();
+                }
+            }
+        },
         methods: {
+            loadPayload() {
+                return {
+                    startDate: this.payload.keyDates.startDate,
+                    finalMaturityDate: this.payload.keyDates.finalMaturityDate,
+                    notional: this.payload.notional,
+                    participationRate: this.payload.participationRate,
+                    startLevel: this.payload.startLevel,
+                    currency: this.payload.currency
+                }
+            },
             onChange() {
                 // Re-raise the change event for this component
                 // startDate: defaultStartDate,

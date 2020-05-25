@@ -1,5 +1,5 @@
 // import * as d3 from "d3";
-import {formatDate} from "./date-utils.js";
+import {formatDate, formatPercent} from "./formatting-utils.js";
 
 export class Event {
     date
@@ -15,17 +15,18 @@ export class FinalMaturityEvent extends Event {
         super();
 
         const executed = Boolean(maturityLevel);
-        let finalReturnValue = 0.0;
+        let payoff = 0.0;
         if (maturityLevel) {
             const difference = maturityLevel - startLevel;
-            finalReturnValue = startLevel + (Math.max(0.0, difference) * participationRate);
+            payoff = startLevel + (Math.max(0.0, difference) * participationRate);
         }
 
+        this.payoff = payoff;
         this.date = finalMaturityDate;
-        this.value = finalReturnValue;
+        this.value = payoff;
         this.comment = `Date: ${formatDate(finalMaturityDate)}`;
         if (executed) {
-            this.comment += `<br>Return on Maturity: ${finalReturnValue.toFixed(2)}%`;
+            this.comment += `<br>Return on Maturity: ${formatPercent(payoff, 2)}`;
         }
         this.executed = executed; // Always executed
     }
@@ -60,7 +61,7 @@ export class IncomeBarrierEvent extends Event {
         this.date = eventDate;
         this.value = barrierLevel;
         this.comment = `Date: ${formatDate(eventDate)}`;
-        this.comment += `<br>Income Payment: ${(100.0 * payoff).toFixed(2)}%`;
+        this.comment += `<br>Income Payment: ${formatPercent(payoff, 2)}`;
         if (!this.executed) {
             this.comment += `<br>Not Executed`;
         }

@@ -1,5 +1,5 @@
 import {FinalMaturityEvent, IncomeBarrierEvent} from "./simulation-event.js"
-import {formatDate, parseDate} from "./date-utils.js"
+import {formatDate, parseDate} from "./formatting-utils.js"
 
 export class SimulationModel {
     notional; // Notional in currency
@@ -145,7 +145,7 @@ export class SimulationModel {
 
                 const eventDate = event.date;
                 const replacementDate = eventAssetData.date;
-                if (eventDate !== replacementDate) {
+                if (parseDate(eventDate) !== parseDate(replacementDate)) {
                     console.warn(`The selected underlying is missing data for event date ${eventDate}, used value for previous date ${replacementDate}.`)
                 }
 

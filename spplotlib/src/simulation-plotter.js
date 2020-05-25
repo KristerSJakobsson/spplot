@@ -1,5 +1,7 @@
 import * as d3 from "d3";
 
+import {formatPercent} from "./formatting-utils.js"
+
 // CSS Classes
 const Y_RANGE_CLASS = "spplotYAxis";
 const X_RANGE_CLASS = "spplotXAxis";
@@ -88,7 +90,7 @@ export class SimulationPlotter {
 
         this.yRange = this.svg.append("g")
             .call(d3.axisLeft(this.yAxis)
-                .tickFormat(d3.format(".0%")))
+                .tickFormat(label => formatPercent(label, 0)))
             .attr("class", Y_RANGE_CLASS);
 
         // Add y-axis label
@@ -108,7 +110,7 @@ export class SimulationPlotter {
         this.yRange.transition()
             .duration(TRANSFORMATION_SPEED)
             .call(d3.axisLeft(this.yAxis)
-                .tickFormat(d3.format(".0%")));
+                .tickFormat(label => formatPercent(label, 0)));
     }
 
     plotAssetData(data, identifier, strokeColor, strokeWidth) {

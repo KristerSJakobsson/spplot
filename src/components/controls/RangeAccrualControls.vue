@@ -2,25 +2,17 @@
     <b-container>
         <b-row>
             <b-col sm="4">
-                <label for="input-number-of-income-events">Number of Income Events:</label>
+                <label for="input-number-of-accrual-events">Number of Accrual Events:</label>
             </b-col>
             <b-col sm="8">
                 <b-input-group class="mb-2 mr-sm-2 mb-sm-0">
-                    <b-form-spinbutton id="input-number-of-income-events"
+                    <b-form-spinbutton id="input-number-of-accrual-events"
                                        min="0"
                                        step="1"
-                                       v-model="numberOfIncomeEvents"
+                                       v-model="numberOfAccrualEvents"
                                        @change="updateEvents"
                                        v-b-tooltip.hover
-                                       title="Sets the total of income events for this product."></b-form-spinbutton>
-                    <b-form-radio-group
-                            buttons
-                            v-model="isMemory"
-                            name="radios-btn-default"
-                            @input="onChange">
-                        <b-form-radio value=false>Normal</b-form-radio>
-                        <b-form-radio value=true>Memory</b-form-radio>
-                    </b-form-radio-group>
+                                       title="Sets the total number of accrual events for this product."></b-form-spinbutton>
                 </b-input-group>
             </b-col>
         </b-row>
@@ -28,17 +20,28 @@
             <template v-for="event in eventDates">
                 <b-col v-if="event.visible" v-bind:key="event.index" sm="6">
                     <b-card bg-variant="light" class="text-center">
+                        <b-form-radio-group
+                                :disabled="isLastAccrualEvent(event.index)"
+                                buttons
+                                v-model="event.eventType"
+                                name="radios-btn-default"
+                                @input="accrualEventData(event.index)"
+                                v-b-tooltip.hover
+                                title="Type of Accrue event. Either only Accrue at this date or you Pay the Accrued capital and start a new Accrual period.">
+                            <b-form-radio value="accrue_only">Accrue Only</b-form-radio>
+                            <b-form-radio value="pay_and_accrue">Pay and Accrue</b-form-radio>
+                        </b-form-radio-group>
                         <b-input-group append="%" class="mb-2 mr-sm-2 mb-sm-0">
                             <b-form-input type="number"
-                                          @change="barrierDataChanged(event.index)"
-                                          :state="validatedIncomeBarrier(event.index)"
-                                          v-model="event.incomeBarrier"
-                                          placeholder="Enter Income Barrier as a percentage."
+                                          @change="accrualEventData(event.index)"
+                                          :state="validatedLowerLevel(event.index)"
+                                          v-model="event.lowerLevel"
+                                          placeholder="Enter Accrual Event Lower Level as a percentage."
                                           v-b-tooltip.hover
-                                          title="The barrier the asset has to reach for this event to activate.">
+                                          title="The asset needs to be within the Lower Level and Upper Level in order for money to accrue.">
                             </b-form-input>
                         </b-input-group>
-                        <b-form-datepicker @input="barrierDataChanged(event.index)"
+                        <b-form-datepicker @input="accrualEventData(event.index)"
                                            v-model="event.date"
                                            size="sm"
                                            :date-format-options="{ year: 'numeric', month: 'numeric', day: 'numeric' }"
@@ -53,20 +56,10 @@
                         </b-form-invalid-feedback>
 
                         <b-input-group append="%">
-                            <b-form-radio-group
-                                    buttons
-                                    v-model="event.couponType"
-                                    name="radios-btn-default"
-                                    @input="barrierDataChanged(event.index)"
-                                    v-b-tooltip.hover
-                                    title="Payoff style of this event. Fixed will pay a fixed percent payoff when the event activates. Relative will pay the difference of the asset and the event level.">
-                                <b-form-radio value="fixed">Fixed</b-form-radio>
-                                <b-form-radio value="relative">Relative</b-form-radio>
-                            </b-form-radio-group>
                             <b-form-input id="input-start-level"
                                           type="number"
-                                          @change="barrierDataChanged(event.index)"
-                                          :disabled="event.couponType === 'relative'"
+                                          @change="accrualEventData(event.index)"
+                                          :disabled="event.eventType === 'relative'"
                                           v-model="event.couponPayoff"
                                           placeholder="Coupon Payoff"
                                           v-b-tooltip.hover title="The Fixed payoff when the event activates.">
@@ -84,7 +77,7 @@
     import * as moment from 'moment';
 
     export default {
-        name: "BarrierEventControls",
+        name: "RangeAccrualControls",
         props: {
             startDate: String,
             finalMaturityDate: String,
@@ -94,9 +87,8 @@
             const defaultEventDates = []
 
             return {
-                numberOfIncomeEvents: defaultEventDates.length,
-                eventDates: defaultEventDates,
-                isMemory: "false"
+                numberOfAccrualEvents: defaultEventDates.length,
+                eventDates: defaultEventDates
             }
         },
         mounted() {
@@ -113,20 +105,22 @@
                     .filter(value => value.visible === true)
                     .map(value => {
                         return {
-                            incomeBarrier: value.incomeBarrier / 100.0,
+                            lowerLevel: value.lowerLevel / 100.0,
                             couponPayoff: value.couponPayoff / 100.0,
                             date: value.date,
-                            couponType: value.couponType,
-                            isMemory: this.isMemory === "true"
+                            eventType: value.eventType
                         };
                     });
 
                 this.$emit('change', barrierEvents);
             },
-            validatedIncomeBarrier(index) {
-                return validBarrier(this.eventDates[index].incomeBarrier);
+            validatedLowerLevel(index) {
+                return validBarrier(this.eventDates[index].lowerLevel);
             },
-            barrierDataChanged(index) {
+            validatedUpperLevel(index) {
+                return validBarrier(this.eventDates[index].lowerLevel);
+            },
+            accrualEventData(index) {
                 this.eventDates[index].default = false;
                 this.onChange();
             },
@@ -137,13 +131,13 @@
                 const numberOfStoredEvents = this.eventDates.length;
 
                 const difference = endDate.diff(startDate, 'days');
-                const interval = Math.round(difference / (this.numberOfIncomeEvents + 1));
+                const interval = Math.round(difference / (this.numberOfAccrualEvents + 1));
 
-                for (let index = 0; index < Math.max(this.numberOfIncomeEvents, numberOfStoredEvents); ++index) {
+                for (let index = 0; index < Math.max(this.numberOfAccrualEvents, numberOfStoredEvents); ++index) {
 
                     // If we have data for more events than are shown, set them to hidden
                     if (index < numberOfStoredEvents) {
-                        this.eventDates[index].visible = index < this.numberOfIncomeEvents;
+                        this.eventDates[index].visible = index < this.numberOfAccrualEvents;
                     }
                     const date = startDate.add(interval, 'd')
                     const dateString = date.format("YYYY-MM-DD");
@@ -158,14 +152,35 @@
                             visible: true,
                             default: true,
                             index: index,
-                            incomeBarrier: 100,
-                            couponType: "relative",
+                            lowerLevel: 100,
+                            eventType: "accrue_only",
                             couponPayoff: 4
                         };
                         this.eventDates.push(result);
                     }
                 }
+
+                // Update the eventType for the final events to pay and accrue
+                this.eventDates = this.eventDates.map((data, index) => {
+                        if (this.isLastAccrualEvent(index)) {
+                            data.eventType = "pay_and_accrue";
+                        }
+                        return data;
+                    }
+                )
+
                 this.onChange();
+            },
+            isLastAccrualEvent(index) {
+                const maxDate = this.getLastAccrualEventDate();
+                return this.eventDates[index].format('YYYY-MM-DD') === maxDate.format('YYYY-MM-DD');
+            },
+            getLastAccrualEventDate() {
+                // The last visible event must be a payment event
+                const eventDates = this.eventDates
+                    .filter(value => value.visible === true)
+                    .map(value => moment(value.date));
+                return moment.max(eventDates);
             }
         }
     }

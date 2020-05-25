@@ -39,6 +39,9 @@
 
     export default {
         name: "AssetDataControls",
+        props: {
+            payload: Object
+        },
         data() {
             const defaultAssetData = null;
 
