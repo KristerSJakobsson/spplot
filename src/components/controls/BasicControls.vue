@@ -8,7 +8,8 @@
                 <b-form-datepicker id="input-start-date"
                                    @input="onChange"
                                    :state="validatedStartDate"
-                                   v-model="startDate">
+                                   v-model="startDate"
+                                   v-b-tooltip.hover title="The Start Date for when the product is traded.">
                 </b-form-datepicker>
                 <!-- This will only be shown if the preceding input has an invalid state -->
                 <b-form-invalid-feedback id="input-live-feedback">
@@ -16,7 +17,6 @@
                 </b-form-invalid-feedback>
             </b-col>
         </b-row>
-
         <b-row>
             <b-col sm="3">
                 <label for="input-final-maturity-event">Final Maturity Date:</label>
@@ -26,7 +26,8 @@
                                    @input="onChange"
                                    :state="validatedFinalMaturityDate"
                                    :min="startDate"
-                                   v-model="finalMaturityDate">
+                                   v-model="finalMaturityDate"
+                                   v-b-tooltip.hover title="The Maturity Date for when the product is finished. For Capital Protected products the original investment is returned.">
                 </b-form-datepicker>
                 <!-- This will only be shown if the preceding input has an invalid state -->
                 <b-form-invalid-feedback id="input-live-feedback">
@@ -34,46 +35,6 @@
                 </b-form-invalid-feedback>
             </b-col>
         </b-row>
-
-        <!--                        <b-row>-->
-        <!--                            <b-col sm="3">-->
-        <!--                                <label for="input-currency">Currency:</label>-->
-        <!--                            </b-col>-->
-        <!--                            <b-col sm="9">-->
-        <!--                                &lt;!&ndash; A data list with options for the currencies &ndash;&gt;-->
-        <!--                                <b-form-datalist id="input-currency-selections"-->
-        <!--                                                 :options="currencies"></b-form-datalist>-->
-        <!--                                <b-form-input id="input-currency"-->
-        <!--                                              type="text"-->
-        <!--                                              list="input-currency-selections"-->
-        <!--                                              @change="onChange"-->
-        <!--                                              :state="validatedCurrency"-->
-        <!--                                              v-model="currency">-->
-        <!--                                </b-form-input>-->
-        <!--                                &lt;!&ndash; This will only be shown if the preceding input has an invalid state &ndash;&gt;-->
-        <!--                                <b-form-invalid-feedback id="input-live-feedback">-->
-        <!--                                    Enter the currency for the Notional.-->
-        <!--                                </b-form-invalid-feedback>-->
-        <!--                            </b-col>-->
-        <!--                        </b-row>-->
-
-        <!--                        <b-row>-->
-        <!--                            <b-col sm="3">-->
-        <!--                                <label for="input-notional">Notional:</label>-->
-        <!--                            </b-col>-->
-        <!--                            <b-col sm="9">-->
-        <!--                                <b-input-group :append="currency" class="mb-2 mr-sm-2 mb-sm-0">-->
-        <!--                                    <b-form-input id="input-notional"-->
-        <!--                                                  type="number"-->
-        <!--                                                  @change="onChange"-->
-        <!--                                                  :state="validatedNotional"-->
-        <!--                                                  v-model="notional"-->
-        <!--                                                  placeholder="Enter Notional as a number.">-->
-        <!--                                    </b-form-input>-->
-        <!--                                </b-input-group>-->
-        <!--                            </b-col>-->
-        <!--                        </b-row>-->
-
         <b-row>
             <b-col sm="3">
                 <label for="input-start-level">Start Level:</label>
@@ -85,7 +46,8 @@
                                   @change="onChange"
                                   :state="validatedStartLevel"
                                   v-model="startLevel"
-                                  placeholder="Enter Participation Rate as a percentage.">
+                                  placeholder="Enter Participation Rate as a percentage."
+                                  v-b-tooltip.hover title="Percentage of underlying at start which is considered for receiving return. This is plotted as a horizontal green line.">
                     </b-form-input>
                 </b-input-group>
             </b-col>
@@ -102,7 +64,8 @@
                                   @change="onChange"
                                   :state="validatedParticipationRate"
                                   v-model="participationRate"
-                                  placeholder="Enter Participation Rate as a percentage.">
+                                  placeholder="Enter Participation Rate as a percentage."
+                                  v-b-tooltip.hover title="The proportion of the increase in value you receive at maturity. If the asset value has increased by 50% and Participation Rate is 20%, you will receive 110% of your original investment on maturity.">
                     </b-form-input>
                 </b-input-group>
             </b-col>
@@ -118,7 +81,8 @@
                              @input="loadDataFile"
                              accept="text/csv"
                              placeholder="Choose a CSV file or drop it here..."
-                             drop-placeholder="Drop CSV file here...">
+                             drop-placeholder="Drop CSV file here..."
+                             v-b-tooltip.hover title="Expects CSV file with columns for Date and Close/Open etc (with headers) that will be plotted in the Simulation Graph.">
                 </b-form-file>
             </b-col>
         </b-row>
@@ -132,7 +96,8 @@
                                @change="updateAssetData"
                                :state="Boolean(rawAssetData)"
                                :options="dataFileColumns"
-                               v-model="selectedDataFileColumn">
+                               v-model="selectedDataFileColumn"
+                               v-b-tooltip.hover title="Select which column from the imported CSV data you want to use for the underlying in the Simulation Graph.">
                 </b-form-select>
             </b-col>
         </b-row>

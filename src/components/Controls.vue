@@ -6,15 +6,19 @@
         </p>
         <b-card no-body>
             <b-tabs pills card vertical>
-                <b-tab title="Basic" active>
+                <b-tab title="Basic Controls" active>
                     <BasicControls @change="basicControlChange">
                     </BasicControls>
                 </b-tab>
-                <b-tab title="Barrier Events">
+                <b-tab title="Asset Data">
+                </b-tab>
+                <b-tab title="Income Barrier Feature">
                     <BarrierEventControls @change="barrierEventControlChange"
                                           v-bind:startDate="this.payload.keyDates.startDate"
                                           v-bind:finalMaturityDate="this.payload.keyDates.finalMaturityDate">
                     </BarrierEventControls>
+                </b-tab>
+                <b-tab title="Range Accrual Feature">
                 </b-tab>
             </b-tabs>
         </b-card>

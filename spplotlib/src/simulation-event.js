@@ -11,21 +11,27 @@ export class Event {
 export class FinalMaturityEvent extends Event {
     /* Capital Protected -> Get the investment back */
 
-    constructor(finalMaturityDate, startLevel, endLevel, participationRate) {
+    constructor(finalMaturityDate, startLevel, participationRate, maturityLevel) {
         super();
 
-
-        const difference = endLevel - startLevel;
-        const finalReturnValue = 100.0  * (startLevel + (Math.max(0.0, difference) * participationRate));
+        const executed = Boolean(maturityLevel);
+        let finalReturnValue = 0.0;
+        if (maturityLevel) {
+            const difference = maturityLevel - startLevel;
+            finalReturnValue = 100.0  * (startLevel + (Math.max(0.0, difference) * participationRate));
+        }
 
         this.date = finalMaturityDate;
         this.value = finalReturnValue;
-        this.comment = `Date: ${formatDate(finalMaturityDate)}<br>Return on Maturity: ${finalReturnValue.toFixed(2)}%`;
-        this.executed = true; // Always executed
+        this.comment = `Date: ${formatDate(finalMaturityDate)}`;
+        if (executed) {
+            this.comment += `<br>Return on Maturity: ${finalReturnValue.toFixed(2)}%`;
+        }
+        this.executed = executed; // Always executed
     }
 }
 
-export class IncomeEvent extends Event {
+export class IncomeBarrierEvent extends Event {
 
     constructor(eventDate, assetValue, barrierLevel, couponType, couponPayoff, isMemory, pastEvents) {
         super();

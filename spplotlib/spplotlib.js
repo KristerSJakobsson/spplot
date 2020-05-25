@@ -76,7 +76,7 @@ export class SimulationGraphPlotter {
             .setCurrency(this.productData.currency)
             .setParticipationRate(this.productData.participationRate)
             .setStartLevel(this.productData.startLevel)
-            .setBarrierEvents(this.productData.barrierEvents)
+            .setIncomeBarrierEvents(this.productData.barrierEvents)
             .setKeyDates(this.productData.keyDates);
         if (this.productData.assetData) {
             this.model.setAssetData(this.productData.assetData);
