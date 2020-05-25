@@ -98,7 +98,7 @@ export class SimulationModel {
             .map(data => {
                 return {
                     date: data.date,
-                    value: 100.0 * data.value / this.fixing
+                    value: data.value / this.fixing
                 };
             });
 

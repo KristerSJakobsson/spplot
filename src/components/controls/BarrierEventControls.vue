@@ -10,12 +10,13 @@
                                        min="0"
                                        step="1"
                                        v-model="numberOfIncomeEvents"
-                                       @change="updateEvents"></b-form-spinbutton>
+                                       @change="updateEvents"
+                                       v-b-tooltip.hover title="Sets the total of income events for this product."></b-form-spinbutton>
                     <b-form-radio-group
                             buttons
                             v-model="isMemory"
                             name="radios-btn-default"
-                            @input="updateIsMemory">
+                            @input="onChange">
                         <b-form-radio value=false>Normal</b-form-radio>
                         <b-form-radio value=true>Memory</b-form-radio>
                     </b-form-radio-group>
@@ -31,7 +32,8 @@
                                           @change="barrierDataChanged(event.index)"
                                           :state="validatedIncomeBarrier(event.index)"
                                           v-model="event.incomeBarrier"
-                                          placeholder="Enter Income Barrier as a percentage.">
+                                          placeholder="Enter Income Barrier as a percentage."
+                                          v-b-tooltip.hover title="The barrier the asset has to reach for this event to activate.">
                             </b-form-input>
                         </b-input-group>
                         <b-form-datepicker @input="barrierDataChanged(event.index)"
@@ -40,7 +42,8 @@
                                            :date-format-options="{ year: 'numeric', month: 'numeric', day: 'numeric' }"
                                            locale="se"
                                            :min="startDate"
-                                           :max="finalMaturityDate">
+                                           :max="finalMaturityDate"
+                                           v-b-tooltip.hover title="The date of this event.">
                         </b-form-datepicker>
                         <!-- This will only be shown if the preceding input has an invalid state -->
                         <b-form-invalid-feedback id="input-live-feedback">
@@ -48,20 +51,22 @@
                         </b-form-invalid-feedback>
 
                         <b-input-group append="%">
-                                <b-form-radio-group
-                                        buttons
-                                        v-model="event.couponType"
-                                        name="radios-btn-default"
-                                        @input="barrierDataChanged(event.index)">
-                                    <b-form-radio value="fixed">Fixed</b-form-radio>
-                                    <b-form-radio value="relative">Relative</b-form-radio>
-                                </b-form-radio-group>
+                            <b-form-radio-group
+                                    buttons
+                                    v-model="event.couponType"
+                                    name="radios-btn-default"
+                                    @input="barrierDataChanged(event.index)"
+                                    v-b-tooltip.hover title="Payoff style of this event. Fixed will pay a fixed percent payoff when the event activates. Relative will pay the difference of the asset and the event level.">
+                                <b-form-radio value="fixed">Fixed</b-form-radio>
+                                <b-form-radio value="relative">Relative</b-form-radio>
+                            </b-form-radio-group>
                             <b-form-input id="input-start-level"
                                           type="number"
                                           @change="barrierDataChanged(event.index)"
                                           :disabled="event.couponType === 'relative'"
                                           v-model="event.couponPayoff"
-                                          placeholder="Coupon Payoff">
+                                          placeholder="Coupon Payoff"
+                                          v-b-tooltip.hover title="The Fixed payoff when the event activates.">
                             </b-form-input>
                         </b-input-group>
                     </b-card>
@@ -101,7 +106,16 @@
             onChange() {
                 // Re-raise the change event for this component
                 const barrierEvents = this.eventDates
-                    .filter(value => value.visible === true);
+                    .filter(value => value.visible === true)
+                    .map(value => {
+                        return {
+                            incomeBarrier: value.incomeBarrier / 100.0,
+                            couponPayoff: value.couponPayoff / 100.0,
+                            date: value.date,
+                            couponType: value.couponType,
+                            isMemory: this.isMemory === "true"
+                        };
+                    });
 
                 this.$emit('change', barrierEvents);
             },
@@ -142,19 +156,11 @@
                             index: index,
                             incomeBarrier: 100,
                             couponType: "relative",
-                            couponPayoff: 4,
-                            isMemory: this.isMemory === "true"
+                            couponPayoff: 4
                         };
                         this.eventDates.push(result);
                     }
                 }
-                this.onChange();
-            },
-            updateIsMemory() {
-                this.eventDates = this.eventDates.map(data => {
-                    data.isMemory = this.isMemory === "true"
-                    return data;
-                });
                 this.onChange();
             }
         }

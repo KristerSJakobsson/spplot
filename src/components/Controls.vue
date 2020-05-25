@@ -11,6 +11,7 @@
                     </BasicControls>
                 </b-tab>
                 <b-tab title="Asset Data">
+                    <AssetDataControls @change="assetDataControlChange"></AssetDataControls>
                 </b-tab>
                 <b-tab title="Income Barrier Feature">
                     <BarrierEventControls @change="barrierEventControlChange"
@@ -36,6 +37,7 @@
 
 <script>
     import BarrierEventControls from '@/components/controls/BarrierEventControls.vue'
+    import AssetDataControls from '@/components/controls/AssetDataControls.vue'
     import BasicControls from '@/components/controls/BasicControls.vue'
     import PayoffGraph from '@/components/canvas/PayoffGraph.vue'
     import SimulationGraph from '@/components/canvas/SimulationGraph.vue'
@@ -51,7 +53,8 @@
             PayoffGraph: PayoffGraph,
             SimulationGraph: SimulationGraph,
             BasicControls: BasicControls,
-            BarrierEventControls: BarrierEventControls
+            BarrierEventControls: BarrierEventControls,
+            AssetDataControls: AssetDataControls
         },
         data() {
             return {
@@ -65,7 +68,7 @@
                     startLevel: null,
                     currency: null,
                     assetData: null,
-                    barrierEvents: []
+                    incomeBarrierEvents: []
                 }
             }
         },
@@ -75,19 +78,20 @@
                                notional,
                                participationRate,
                                startLevel,
-                               currency,
-                               assetData) {
+                               currency) {
                 this.payload.keyDates.startDate = startDate
                 this.payload.keyDates.finalMaturityDate = finalMaturityDate;
                 this.payload.notional = parseNotional(notional);
                 this.payload.participationRate = parsePercentage(participationRate);
                 this.payload.startLevel = parsePercentage(startLevel);
                 this.payload.currency = parseCurrency(currency);
-                this.payload.assetData = assetData;
 
             },
-            barrierEventControlChange(barrierEvents) {
-                this.payload.barrierEvents = barrierEvents;
+            assetDataControlChange(assetData) {
+                this.payload.assetData = assetData;
+            },
+            barrierEventControlChange(incomeBarrierEvents) {
+                this.payload.incomeBarrierEvents = incomeBarrierEvents;
             }
         }
     }

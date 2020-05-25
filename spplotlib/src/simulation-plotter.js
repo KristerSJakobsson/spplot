@@ -83,11 +83,12 @@ export class SimulationPlotter {
     _initializeCouponBarrierScale() {
         // Add y-axis
         this.yAxis = d3.scaleLinear()
-            .domain([0, 200])
+            .domain([0, 2])
             .range([this.height, 0]);
 
         this.yRange = this.svg.append("g")
-            .call(d3.axisLeft(this.yAxis))
+            .call(d3.axisLeft(this.yAxis)
+                .tickFormat(d3.format(".0%")))
             .attr("class", Y_RANGE_CLASS);
 
         // Add y-axis label
@@ -106,8 +107,8 @@ export class SimulationPlotter {
 
         this.yRange.transition()
             .duration(TRANSFORMATION_SPEED)
-            .call(d3.axisLeft(this.yAxis));
-
+            .call(d3.axisLeft(this.yAxis)
+                .tickFormat(d3.format(".0%")));
     }
 
     plotAssetData(data, identifier, strokeColor, strokeWidth) {

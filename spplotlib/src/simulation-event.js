@@ -18,7 +18,7 @@ export class FinalMaturityEvent extends Event {
         let finalReturnValue = 0.0;
         if (maturityLevel) {
             const difference = maturityLevel - startLevel;
-            finalReturnValue = 100.0  * (startLevel + (Math.max(0.0, difference) * participationRate));
+            finalReturnValue = startLevel + (Math.max(0.0, difference) * participationRate);
         }
 
         this.date = finalMaturityDate;
@@ -60,7 +60,7 @@ export class IncomeBarrierEvent extends Event {
         this.date = eventDate;
         this.value = barrierLevel;
         this.comment = `Date: ${formatDate(eventDate)}`;
-        this.comment += `<br>Income Payment: ${payoff.toFixed(2)}%`;
+        this.comment += `<br>Income Payment: ${(100.0 * payoff).toFixed(2)}%`;
         if (!this.executed) {
             this.comment += `<br>Not Executed`;
         }
