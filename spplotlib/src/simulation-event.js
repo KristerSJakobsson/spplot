@@ -6,13 +6,22 @@ export class Event {
     value
     comment
     executed
+    dependentEvents
+
+    constructor(date, value, payoff, comment, executed, dependentEvents) {
+        this.date = date;
+        this.value = value;
+        this.payoff = payoff;
+        this.comment = comment;
+        this.executed = executed;
+        this.dependentEvents = dependentEvents;
+    }
 }
 
 export class FinalMaturityEvent extends Event {
     /* Capital Protected -> Get the investment back */
 
     constructor(finalMaturityDate, startLevel, participationRate, maturityLevel) {
-        super();
 
         const executed = Boolean(maturityLevel);
         let payoff = 0.0;
@@ -21,21 +30,17 @@ export class FinalMaturityEvent extends Event {
             payoff = startLevel + (Math.max(0.0, difference) * participationRate);
         }
 
-        this.payoff = payoff;
-        this.date = finalMaturityDate;
-        this.value = payoff;
-        this.comment = `Date: ${formatDate(finalMaturityDate)}`;
+        let comment = `Date: ${formatDate(finalMaturityDate)}`;
         if (executed) {
-            this.comment += `<br>Return on Maturity: ${formatPercent(payoff, 2)}`;
+            comment += `<br>Return on Maturity: ${formatPercent(payoff, 2)}`;
         }
-        this.executed = executed; // Always executed
+        super(finalMaturityDate, payoff, payoff, comment, executed, null);
     }
 }
 
 export class IncomeBarrierEvent extends Event {
 
-    constructor(eventDate, assetValue, barrierLevel, couponType, couponPayoff, isMemory, pastEvents) {
-        super();
+    constructor(eventDate, assetValue, barrierLevel, couponType, couponPayoff, isMemory, previousEvent) {
 
         const difference = assetValue - barrierLevel;
         const executed = difference >= 0.0;
@@ -47,24 +52,37 @@ export class IncomeBarrierEvent extends Event {
             payoff = couponPayoff;
         }
 
-        if (executed === true && isMemory === true) {
-            // Memory feature, recover any previously lost income events
-            for (let index = pastEvents.length - 1; index >= 0; index--) {
-                if (pastEvents[index].executed) break;
-
-                payoff += pastEvents[index].payoff;
-            }
+        if (isMemory && executed && previousEvent) {
+            payoff += previousEvent.checkMemoryFeature();
         }
 
-        this.payoff = payoff;
-        this.executed = executed;
-        this.date = eventDate;
-        this.value = barrierLevel;
-        this.comment = `Date: ${formatDate(eventDate)}`;
-        this.comment += `<br>Income Payment: ${formatPercent(payoff, 2)}`;
-        if (!this.executed) {
-            this.comment += `<br>Not Executed`;
+        let comment = `Date: ${formatDate(eventDate)}`;
+        comment += `<br>Income Payment: ${formatPercent(payoff, 2)}`;
+        if (!executed) {
+            comment += `<br>Not Executed`;
         }
+
+        const dependentEvents = previousEvent ? [previousEvent] : null;
+
+        super(eventDate, barrierLevel, payoff, comment, executed, dependentEvents);
+
+    }
+
+    checkMemoryFeature() {
+
+        if (this.executed) {
+            return 0.0;
+        }
+
+        // Memory feature, recover any previously lost income events
+        let pastEventPayoffs = 0.0;
+        if (this.dependentEvents)
+            pastEventPayoffs = this.dependentEvents
+                .map(pastEvent => pastEvent.checkMemoryFeature())
+                .reduce((previous, current) => previous + current, pastEventPayoffs);
+
+        return this.payoff + pastEventPayoffs;
+
     }
 }
 

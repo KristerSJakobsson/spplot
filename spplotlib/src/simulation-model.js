@@ -63,6 +63,64 @@ export class SimulationModel {
         return this;
     }
 
+    _calculate_return_events() {
+        let returnEvents = [];
+        returnEvents = returnEvents.concat(this._parse_income_barrier_events())
+        returnEvents.push(this._parse_final_maturity_event());
+        this.returnEvents = returnEvents;
+    }
+
+    _parse_final_maturity_event() {
+        return new FinalMaturityEvent(
+            this.finalMaturityDate,
+            this.startLevel,
+            this.participationRate,
+            this.maturityLevel);
+    }
+
+    _parse_income_barrier_events() {
+        let parsedIncomeBarrierEvents = [];
+
+        if (this.incomeBarrierEvents) {
+            this.incomeBarrierEvents
+                .sort((first, second) => {
+                    if (first.date < second.date) return -1;
+                    if (first.date > second.date) return 1;
+                    return 0;
+                })
+                .forEach(event => {
+                    // Find the last date before the event date
+                    const eventAssetData = this.assetData.reduce(
+                        (previous, current) => {
+                            if (current.date <= event.date && previous.date < current.date) {
+                                return current;
+                            }
+                            return previous;
+                        },
+                        this.assetData[0]);
+
+                    const eventDate = event.date;
+                    const replacementDate = eventAssetData.date;
+                    if (parseDate(eventDate) !== parseDate(replacementDate)) {
+                        console.warn(`The selected underlying is missing data for event date ${eventDate}, used value for previous date ${replacementDate}.`)
+                    }
+
+                    const previousEvent = parsedIncomeBarrierEvents.slice(-1)[0];
+                    const incomeBarrierEvent = new IncomeBarrierEvent(
+                        event.date,
+                        eventAssetData.value,
+                        event.incomeBarrier,
+                        event.couponType,
+                        event.couponPayoff,
+                        event.isMemory,
+                        previousEvent);
+
+                    parsedIncomeBarrierEvents.push(incomeBarrierEvent);
+                });
+        }
+        return parsedIncomeBarrierEvents;
+    }
+
     setAssetData(assetData) {
         // Set the fixing to startDate
         const fixing = assetData.find(data => data.date === formatDate(this.startDate));
@@ -113,54 +171,4 @@ export class SimulationModel {
         return this;
     }
 
-    _calculate_return_events() {
-        let returnEvents = [];
-        returnEvents = returnEvents.concat(this._parse_income_barrier_events())
-        returnEvents.push(this._parse_final_maturity_event());
-        this.returnEvents = returnEvents;
-    }
-
-    _parse_final_maturity_event() {
-        return new FinalMaturityEvent(
-            this.finalMaturityDate,
-            this.startLevel,
-            this.participationRate,
-            this.maturityLevel);
-    }
-
-    _parse_income_barrier_events() {
-        let parsedIncomeBarrierEvents = [];
-
-        if (this.incomeBarrierEvents) {
-            this.incomeBarrierEvents.forEach(event => {
-                // Find the last date before the event date
-                const eventAssetData = this.assetData.reduce(
-                    (previous, current) => {
-                        if (current.date <= event.date && previous.date < current.date) {
-                            return current;
-                        }
-                        return previous;
-                    },
-                    this.assetData[0]);
-
-                const eventDate = event.date;
-                const replacementDate = eventAssetData.date;
-                if (parseDate(eventDate) !== parseDate(replacementDate)) {
-                    console.warn(`The selected underlying is missing data for event date ${eventDate}, used value for previous date ${replacementDate}.`)
-                }
-
-                const incomeBarrierEvent = new IncomeBarrierEvent(
-                    event.date,
-                    eventAssetData.value,
-                    event.incomeBarrier,
-                    event.couponType,
-                    event.couponPayoff,
-                    event.isMemory,
-                    parsedIncomeBarrierEvents);
-
-                parsedIncomeBarrierEvents.push(incomeBarrierEvent);
-            });
-        }
-        return parsedIncomeBarrierEvents;
-    }
 }
