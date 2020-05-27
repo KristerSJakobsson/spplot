@@ -63,12 +63,6 @@ export class SimulationModel {
         return this;
     }
 
-    _calculate_return_events() {
-        let returnEvents = [];
-        returnEvents = returnEvents.concat(this._parse_income_barrier_events())
-        returnEvents.push(this._parse_final_maturity_event());
-        this.returnEvents = returnEvents;
-    }
 
     _parse_final_maturity_event() {
         return new FinalMaturityEvent(
@@ -171,4 +165,14 @@ export class SimulationModel {
         return this;
     }
 
+    _calculate_return_events() {
+        let returnEvents = [];
+        returnEvents = returnEvents.concat(this._parse_income_barrier_events())
+        returnEvents.push(this._parse_final_maturity_event());
+        this.returnEvents = returnEvents.sort((first, second) => {
+            if (first.date < second.date) return -1;
+            if (first.date > second.date) return 1;
+            return 0;
+        });
+    }
 }

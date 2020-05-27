@@ -78,13 +78,13 @@ export class SimulationGraphPlotter {
             this.plotter.plotHorizontalLine(startLevelData, START_LINE_CLASS, "green", 1);
         }
 
-        if (this.model.endLevel) {
-            const endLevelData = [
-                {date: this.model.startDate, value: Number(this.model.endLevel)},
-                {date: this.model.finalMaturityDate, value: Number(this.model.endLevel)}
+        if (this.model.maturityLevel) {
+            const maturityLevelData = [
+                {date: this.model.startDate, value: Number(this.model.maturityLevel)},
+                {date: this.model.finalMaturityDate, value: Number(this.model.maturityLevel)}
             ]
 
-            this.plotter.plotHorizontalLine(endLevelData, END_LINE_CLASS, "blue", 1);
+            this.plotter.plotHorizontalLine(maturityLevelData, END_LINE_CLASS, "blue", 1);
         }
 
         if (this.model.incomeBarrierEvents) {
@@ -100,9 +100,7 @@ export class SimulationGraphPlotter {
 
         if (this.model.returnEvents) {
 
-            const executedReturnEvents = this.model.returnEvents;
-
-            this.plotter.plotDots(executedReturnEvents,
+            this.plotter.plotDots(this.model.returnEvents,
                 RETURN_PRICE_CLASS,
                 d => d.executed === true ? "green" : "gray");
         }

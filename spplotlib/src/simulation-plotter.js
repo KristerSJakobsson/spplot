@@ -151,9 +151,10 @@ export class SimulationPlotter {
             .attr("d", d3.line()
                 .x(d => this.xAxis(d.date))
                 .y(d => this.yAxis(d.value)))
-            .attr("fill", "none")
-            .attr("stroke", strokeColor)
-            .attr("stroke-width", strokeWidth);
+            .style("opacity", 0.5)
+            .style("fill", "none")
+            .style("stroke", strokeColor)
+            .style("stroke-width", strokeWidth);
 
         return dataLine;
     }
