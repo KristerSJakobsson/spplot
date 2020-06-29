@@ -53,13 +53,14 @@ export class SimulationModel {
             this.incomeBarrierEvents = incomeBarrierEvents.map(data => {
                 return {
                     date: parseDate(data.date),
-                    incomeBarrier: Number(data.incomeBarrier),
+                    incomeBarriers: data.incomeBarriers.map(value => Number(value)),
                     couponType: data.couponType,
-                    couponPayoff: Number(data.couponPayoff),
+                    couponPayoffs: data.couponPayoffs.map(value => Number(value)),
                     isMemory: Boolean(data.isMemory)
                 };
             });
         }
+        this._calculate_return_events();
         return this;
     }
 
@@ -83,29 +84,14 @@ export class SimulationModel {
                     return 0;
                 })
                 .forEach(event => {
-                    // Find the last date before the event date
-                    const eventAssetData = this.assetData.reduce(
-                        (previous, current) => {
-                            if (current.date <= event.date && previous.date < current.date) {
-                                return current;
-                            }
-                            return previous;
-                        },
-                        this.assetData[0]);
-
                     const eventDate = event.date;
-                    const replacementDate = eventAssetData.date;
-                    if (parseDate(eventDate) !== parseDate(replacementDate)) {
-                        console.warn(`The selected underlying is missing data for event date ${eventDate}, used value for previous date ${replacementDate}.`)
-                    }
 
                     const previousEvent = parsedIncomeBarrierEvents.slice(-1)[0];
                     const incomeBarrierEvent = new IncomeBarrierEvent(
-                        event.date,
-                        eventAssetData.value,
-                        event.incomeBarrier,
+                        eventDate,
+                        event.incomeBarriers,
                         event.couponType,
-                        event.couponPayoff,
+                        event.couponPayoffs,
                         event.isMemory,
                         previousEvent);
 
@@ -123,10 +109,10 @@ export class SimulationModel {
             this.fixing = null;
             this.maturityLevel = null;
             console.warn(`Not possible to render graph since asset has no value for fixing date ${formatDate(this.startDate)}.`);
-            return this
+            return this;
         }
 
-        this.fixing = Number(fixing.value)
+        this.fixing = Number(fixing.value);
 
         // Get the End Level (value for End Date)
         this.maturityData = assetData.find(data => data.date === formatDate(this.finalMaturityDate));
@@ -160,8 +146,32 @@ export class SimulationModel {
                 this.participationRate = 1.0;
             }
 
-            this._calculate_return_events();
         }
+
+        if (this.returnEvents) {
+            this.returnEvents
+                .forEach(event => {
+
+                    // Find the last date before the event date
+                    const eventAssetData = this.assetData.reduce(
+                        (previous, current) => {
+                            if (current.date <= event.eventDate && previous.date < current.date) {
+                                return current;
+                            }
+                            return previous;
+                        },
+                        this.assetData[0]);
+
+                    const replacementDate = eventAssetData.date;
+                    const replacementValue = eventAssetData.value;
+                    if (parseDate(event.eventDate) !== parseDate(replacementDate)) {
+                        console.warn(`The selected underlying is missing data for event date ${event.eventDate}, used value for previous date ${replacementDate}.`)
+                    }
+
+                    event.evaluate(replacementDate, replacementValue);
+                });
+        }
+
         return this;
     }
 
