@@ -22,6 +22,8 @@ export class SimulationPlotter {
     margin;
     tooltip;
     bindTarget;
+    yMin;
+    yMax;
 
     constructor(bindTarget, width, height, margin) {
         this.width = width;
@@ -107,6 +109,9 @@ export class SimulationPlotter {
             .domain([yMin, yMax])
             .range([this.height, 0]);
 
+        this.yMin = yMin;
+        this.yMax = yMax;
+
         this.yRange.transition()
             .duration(TRANSFORMATION_SPEED)
             .call(d3.axisLeft(this.yAxis)
@@ -159,7 +164,8 @@ export class SimulationPlotter {
         return dataLine;
     }
 
-    plotBarrierLines(data, identifier, strokeColor) {
+    plotBarrierLines(data, identifier) {
+
         const existingLines = this.svg
             .selectAll(`.${identifier}`)
             .nodes();
@@ -172,30 +178,32 @@ export class SimulationPlotter {
                 d3.select(existingLines[index])
                     .transition()
                     .duration(TRANSFORMATION_SPEED)
-                    .attr("x1", this.xAxis(data[index].date))
-                    .attr("x2", this.xAxis(data[index].date))
-                    .attr("y1", this.yAxis(0.0))
-                    .attr("y2", this.yAxis(data[index].value));
+                    .attr("x1", this.xAxis(data[index].eventDate))
+                    .attr("x2", this.xAxis(data[index].eventDate))
+                    .attr("y1", this.yAxis(Math.max(data[index].min, this.yMin)))
+                    .attr("y2", this.yAxis(Math.min(data[index].max, this.yMax)));
             } else if (index < data.length) {
                 // Create new line
                 this.svg.append("line")
                     .attr("class", `${identifier}`)
                     .attr("stroke-dasharray", "5,5")
-                    .attr("x1", this.xAxis(data[index].date))
-                    .attr("x2", this.xAxis(data[index].date))
+                    .attr("x1", this.xAxis(data[index].eventDate))
+                    .attr("x2", this.xAxis(data[index].eventDate))
                     .attr("y1", this.yAxis(0.0))
                     .attr("y2", this.yAxis(0.0))
                     .attr("stroke-width", 0.5)
                     .attr("fill", "none")
-                    .attr("stroke", strokeColor)
+                    .attr("stroke", data[index].color)
                     .transition()
                     .duration(TRANSFORMATION_SPEED)
-                    .attr("y2", this.yAxis(data[index].value));
+                    .attr("y1", this.yAxis(Math.max(data[index].min, this.yMin)))
+                    .attr("y2", this.yAxis(Math.min(data[index].max, this.yMax)));
             } else {
                 // Delete existing line
                 d3.select(existingLines[index])
                     .transition()
                     .duration(TRANSFORMATION_SPEED)
+                    .attr("y1", this.yAxis(0.0))
                     .attr("y2", this.yAxis(0.0))
                     .remove();
             }

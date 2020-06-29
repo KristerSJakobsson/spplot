@@ -41,6 +41,16 @@
                                           title="The asset needs to be within the Lower Level and Upper Level in order for money to accrue.">
                             </b-form-input>
                         </b-input-group>
+                        <b-input-group append="%" class="mb-2 mr-sm-2 mb-sm-0">
+                            <b-form-input type="number"
+                                          @change="accrualEventData(event.index)"
+                                          :state="validatedUpperLevel(event.index)"
+                                          v-model="event.upperLevel"
+                                          placeholder="Enter Accrual Event Upper Level as a percentage."
+                                          v-b-tooltip.hover
+                                          title="The asset needs to be within the Lower Level and Upper Level in order for money to accrue.">
+                            </b-form-input>
+                        </b-input-group>
                         <b-form-datepicker @input="accrualEventData(event.index)"
                                            v-model="event.date"
                                            size="sm"
@@ -106,6 +116,7 @@
                     .map(value => {
                         return {
                             lowerLevel: value.lowerLevel / 100.0,
+                            higherLevel: value.higherLevel / 100.0,
                             couponPayoff: value.couponPayoff / 100.0,
                             date: value.date,
                             eventType: value.eventType
@@ -118,7 +129,7 @@
                 return validBarrier(this.eventDates[index].lowerLevel);
             },
             validatedUpperLevel(index) {
-                return validBarrier(this.eventDates[index].lowerLevel);
+                return validBarrier(this.eventDates[index].upperLevel);
             },
             accrualEventData(index) {
                 this.eventDates[index].default = false;
@@ -152,7 +163,8 @@
                             visible: true,
                             default: true,
                             index: index,
-                            lowerLevel: 100,
+                            lowerLevel: 80,
+                            upperLevel: 120,
                             eventType: "accrue_only",
                             couponPayoff: 4
                         };
@@ -173,7 +185,7 @@
             },
             isLastAccrualEvent(index) {
                 const maxDate = this.getLastAccrualEventDate();
-                return this.eventDates[index].format('YYYY-MM-DD') === maxDate.format('YYYY-MM-DD');
+                return this.eventDates[index].date === maxDate.format('YYYY-MM-DD');
             },
             getLastAccrualEventDate() {
                 // The last visible event must be a payment event

@@ -55,10 +55,16 @@ export class SimulationGraphPlotter {
         }
     }
 
+    _plotEventResults() {
+        this.plotter.plotDots([], RETURN_PRICE_CLASS, "red")
+    }
+
     _updateAssetData() {
         // When we have asset data, plot it
         if (this.model.assetData) {
             this.plotter.plotAssetData(this.model.assetData, ASSET_DATA_CLASS, "black", 1);
+            this._updateCouponBarrierLimits();
+            this._plotEventResults();
         }
     }
 
@@ -85,24 +91,41 @@ export class SimulationGraphPlotter {
             ]
 
             this.plotter.plotHorizontalLine(maturityLevelData, END_LINE_CLASS, "blue", 1);
+
         }
 
-        if (this.model.incomeBarrierEvents) {
-            const plotBarriers = this.model.incomeBarrierEvents.map(event => {
-                return {
-                    value: event.incomeBarrier,
-                    date: event.date
-                }
-            });
+    }
 
-            this.plotter.plotBarrierLines(plotBarriers, BARRIER_EVENT_CLASS, "orange");
-        }
-
+    _plotEvents() {
         if (this.model.returnEvents) {
+            let colorIndex = 0;
+            const colors = ["orange", "purple", "red"];
+            const nextColor = () => {
+                colorIndex = colorIndex + 1;
+                if (colors.length === colorIndex) {
+                    colorIndex = 0;
+                }
+                return colors[colorIndex];
+            };
 
-            this.plotter.plotDots(this.model.returnEvents,
-                RETURN_PRICE_CLASS,
-                d => d.executed === true ? "green" : "gray");
+            for (let eventIndex = 0; eventIndex < this.model.returnEvents.length; ++eventIndex) {
+                const event = this.model.returnEvents[eventIndex];
+                const payoffs = event.getPayoffRanges();
+
+                const plotBarriers = payoffs
+                    .filter(payoffRange => payoffRange.payoff > 0.0)
+                    .map(payoffRange => {
+                    return {
+                        min: payoffRange.min,
+                        max: payoffRange.max,
+                        eventDate: event.eventDate,
+                        color: nextColor()
+                    }
+                });
+
+                this.plotter.plotBarrierLines(plotBarriers, `${BARRIER_EVENT_CLASS}-${eventIndex}`, nextColor());
+            }
+
         }
     }
 
@@ -118,11 +141,12 @@ export class SimulationGraphPlotter {
         }
         // Graph scaling
         this._updateTimeScale(); // Update X-axis
-        this._updateCouponBarrierLimits(); // Update Y-axis
-        // Underlying data
-        this._updateAssetData(); // Update asset data line
+
         // Events
         this._updateProductLevels(); // Update Start/End level lines
+        this._plotEvents(); // Update Start/End level lines
+        // Underlying data
+        this._updateAssetData(); // Update asset data line
     }
 
 

@@ -16,24 +16,28 @@
         </b-dropdown>
         <b-card no-body>
             <b-tabs pills card vertical>
-                <b-tab title="Basic Controls" active>
-                    <BasicControls @change="basicControlChange"
+                <b-tab title="Basic Controls" class="input-tab-group" active>
+                    <BasicControls class="input-card"
+                                   @change="basicControlChange"
                                    :payload="payload">
                     </BasicControls>
                 </b-tab>
-                <b-tab title="Asset Data">
-                    <AssetDataControls @change="assetDataControlChange"
+                <b-tab title="Asset Data" class="input-tab-group">
+                    <AssetDataControls class="input-card"
+                                       @change="assetDataControlChange"
                                        :payload="payload"></AssetDataControls>
                 </b-tab>
-                <b-tab title="Income Barrier Feature">
-                    <BarrierEventControls @change="barrierEventControlChange"
+                <b-tab title="Income Barrier Feature" class="input-tab-group">
+                    <BarrierEventControls class="input-card"
+                                          @change="barrierEventControlChange"
                                           v-bind:startDate="this.payload.keyDates.startDate"
                                           v-bind:finalMaturityDate="this.payload.keyDates.finalMaturityDate"
                                           :payload="payload">
                     </BarrierEventControls>
                 </b-tab>
-                <b-tab title="Range Accrual Feature">
-                    <RangeAccrualControls @change="rangeAccrualEventControlChange"
+                <b-tab title="Range Accrual Feature" class="input-tab-group">
+                    <RangeAccrualControls class="input-card"
+                                          @change="rangeAccrualEventControlChange"
                                           v-bind:startDate="this.payload.keyDates.startDate"
                                           v-bind:finalMaturityDate="this.payload.keyDates.finalMaturityDate"
                                           :payload="payload">
@@ -138,4 +142,12 @@
 </script>
 
 <style scoped>
+    .input-tab-group {
+        overflow: auto;
+        height: 400px;
+    }
+
+    .input-card {
+        height: auto;
+    }
 </style>
