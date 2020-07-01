@@ -52,7 +52,7 @@ export class FinalMaturityEvent extends Event {
 
     constructor(finalMaturityDate, startLevel, participationRate) {
         let comment = `Date: ${formatDate(finalMaturityDate)}`;
-        super(finalMaturityDate, null, comment, false, null);
+        super(finalMaturityDate,  comment, false, null);
         this.startLevel = startLevel;
         this.participationRate = participationRate;
         this.payoff = startLevel;
@@ -154,13 +154,13 @@ export class IncomeBarrierEvent extends Event {
         let previousLevel = 0.0;
         for (let index = 0; index < this.barrierLevels.length; ++index) {
 
-            const barrier = {
+            const payoffRange = {
                 min: previousLevel,
                 max: this.barrierLevels[index],
                 payoff: this.couponPayoffs[index]
             };
             previousLevel = this.barrierLevels[index];
-            payoffRanges.push(barrier);
+            payoffRanges.push(payoffRange);
         }
         payoffRanges.push({
             min: previousLevel,

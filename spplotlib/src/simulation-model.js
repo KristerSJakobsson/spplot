@@ -69,8 +69,7 @@ export class SimulationModel {
         return new FinalMaturityEvent(
             this.finalMaturityDate,
             this.startLevel,
-            this.participationRate,
-            this.maturityLevel);
+            this.participationRate);
     }
 
     _parse_income_barrier_events() {

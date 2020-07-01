@@ -33,8 +33,8 @@ export class SimulationGraphPlotter {
             .setCurrency(this.productData.currency)
             .setParticipationRate(this.productData.participationRate)
             .setStartLevel(this.productData.startLevel)
-            .setIncomeBarrierEvents(this.productData.incomeBarrierEvents)
-            .setKeyDates(this.productData.keyDates);
+            .setKeyDates(this.productData.keyDates)
+            .setIncomeBarrierEvents(this.productData.incomeBarrierEvents);
         if (this.productData.assetData) {
             this.model.setAssetData(this.productData.assetData);
         }
@@ -97,19 +97,26 @@ export class SimulationGraphPlotter {
     }
 
     _plotEvents() {
-        if (this.model.returnEvents) {
+        const returnEvents = this.model.returnEvents
+        if (returnEvents != null) {
             let colorIndex = 0;
             const colors = ["orange", "purple", "red"];
+
+            const resetColor = () => {
+                colorIndex = 0;
+            }
+
             const nextColor = () => {
                 colorIndex = colorIndex + 1;
                 if (colors.length === colorIndex) {
-                    colorIndex = 0;
+                    resetColor();
                 }
                 return colors[colorIndex];
             };
 
-            for (let eventIndex = 0; eventIndex < this.model.returnEvents.length; ++eventIndex) {
-                const event = this.model.returnEvents[eventIndex];
+
+            for (let eventIndex = 0; eventIndex < returnEvents.length; ++eventIndex) {
+                const event = returnEvents[eventIndex];
                 const payoffs = event.getPayoffRanges();
 
                 const plotBarriers = payoffs
@@ -123,7 +130,9 @@ export class SimulationGraphPlotter {
                     }
                 });
 
-                this.plotter.plotBarrierLines(plotBarriers, `${BARRIER_EVENT_CLASS}-${eventIndex}`, nextColor());
+                this.plotter.plotBarrierLines(plotBarriers, `${BARRIER_EVENT_CLASS}-${eventIndex}`);
+
+                resetColor();
             }
 
         }

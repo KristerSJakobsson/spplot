@@ -30,6 +30,8 @@ export class SimulationPlotter {
         this.height = height;
         this.margin = margin;
         this.bindTarget = bindTarget;
+        this.yMin = 0.0;
+        this.yMax = 2.0;
 
         // Create SVG element with margins
         this.svg = d3.select(bindTarget)
@@ -87,7 +89,7 @@ export class SimulationPlotter {
     _initializeCouponBarrierScale() {
         // Add y-axis
         this.yAxis = d3.scaleLinear()
-            .domain([0, 2])
+            .domain([this.yMin, this.yMax])
             .range([this.height, 0]);
 
         this.yRange = this.svg.append("g")
@@ -174,15 +176,19 @@ export class SimulationPlotter {
         const numberOfIterations = Math.max(data.length, existingLines.length)
         while (index < numberOfIterations) {
             if (index < existingLines.length && index < data.length) {
+                const minLimit = Math.max(data[index].min, this.yMin);
+                const maxLimit = Math.min(data[index].max, this.yMax);
                 // Move existing line
                 d3.select(existingLines[index])
                     .transition()
                     .duration(TRANSFORMATION_SPEED)
                     .attr("x1", this.xAxis(data[index].eventDate))
                     .attr("x2", this.xAxis(data[index].eventDate))
-                    .attr("y1", this.yAxis(Math.max(data[index].min, this.yMin)))
-                    .attr("y2", this.yAxis(Math.min(data[index].max, this.yMax)));
+                    .attr("y1", this.yAxis(minLimit))
+                    .attr("y2", this.yAxis(maxLimit));
             } else if (index < data.length) {
+                const minLimit = Math.max(data[index].min, this.yMin);
+                const maxLimit = Math.min(data[index].max, this.yMax);
                 // Create new line
                 this.svg.append("line")
                     .attr("class", `${identifier}`)
@@ -196,15 +202,15 @@ export class SimulationPlotter {
                     .attr("stroke", data[index].color)
                     .transition()
                     .duration(TRANSFORMATION_SPEED)
-                    .attr("y1", this.yAxis(Math.max(data[index].min, this.yMin)))
-                    .attr("y2", this.yAxis(Math.min(data[index].max, this.yMax)));
+                    .attr("y1", this.yAxis(minLimit))
+                    .attr("y2", this.yAxis(maxLimit));
             } else {
                 // Delete existing line
                 d3.select(existingLines[index])
                     .transition()
                     .duration(TRANSFORMATION_SPEED)
-                    .attr("y1", this.yAxis(0.0))
-                    .attr("y2", this.yAxis(0.0))
+                    .attr("y1", this.yAxis(this.yMin))
+                    .attr("y2", this.yAxis(this.yMin))
                     .remove();
             }
             index = index + 1;
