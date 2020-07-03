@@ -1,6 +1,6 @@
 <template>
-    <b-container>
-        <b-row>
+    <b-container fluid>
+        <b-row class="my-1">
             <b-col sm="3">
                 <label for="input-data-file">Upload CSV Data:</label>
             </b-col>
@@ -16,7 +16,7 @@
             </b-col>
         </b-row>
 
-        <b-row>
+        <b-row class="my-1">
             <b-col sm="3">
                 <label for="input-data-selector">Select Data Column:</label>
             </b-col>

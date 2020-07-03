@@ -1,6 +1,6 @@
 <template>
-    <b-container>
-        <b-row>
+    <b-container fluid>
+        <b-row class="my-1">
             <b-col sm="5">
                 <label for="input-number-of-coupon-levels">Number of Coupon Levels:</label>
             </b-col>
@@ -14,7 +14,7 @@
                                    title="Sets the total number of income events for this product."></b-form-spinbutton>
             </b-col>
         </b-row>
-        <b-row>
+        <b-row class="my-1">
             <b-col sm="5">
                 <label for="input-income-payoff-style">Payoff Style:</label>
             </b-col>
@@ -22,15 +22,68 @@
                 <b-form-radio-group
                         id="input-income-payoff-style"
                         buttons
-                        v-model="isMemory"
-                        name="radios-btn-default"
+                        v-model="payoffStyle"
                         @input="onChange">
-                    <b-form-radio value=fixed>Fixed</b-form-radio>
-                    <b-form-radio value=relative>Relative</b-form-radio>
+                    <b-form-radio value=fixed>Fixed Coupons</b-form-radio>
+                    <b-form-radio value=relative>Relative Coupons</b-form-radio>
+                    <b-form-radio value="rangeAccrual">Range Accrual</b-form-radio>
                 </b-form-radio-group>
             </b-col>
         </b-row>
-        <b-row v-if="this.numberOfCouponLevels > 0">
+        <b-row v-if="payoffStyle === `relative`"
+               class="my-1">
+            <b-col sm="5">
+                <label for="input-relative-to-what">Relative to:</label>
+            </b-col>
+            <b-col sm="7">
+                <b-form-radio-group
+                        id="input-relative-to"
+                        buttons
+                        v-model="relativeTo"
+                        @input="onChange">
+                    <b-form-radio value=value>Value</b-form-radio>
+                    <b-form-radio value=barrier>Payoff Barrier</b-form-radio>
+                </b-form-radio-group>
+            </b-col>
+        </b-row>
+        <b-row v-if="payoffStyle === `relative` && relativeTo === `barrier`"
+               class="my-1">
+            <b-col sm="5">
+                <label for="input-relative-to-barrier">Select Barrier:</label>
+            </b-col>
+            <b-col sm="7">
+                <b-form-select
+                        id="input-relative-to-barrier"
+                        buttons
+                        v-model="relativeToBarrier"
+                        :options="barrierEventSelections"
+                        :state="relativeToBarrier !== null"
+                        @input="onChange">
+                </b-form-select>
+            </b-col>
+        </b-row>
+        <b-row v-if="payoffStyle === `relative` && relativeTo === `value`"
+               class="my-1">
+            <b-col sm="5">
+                <label for="input-relative-to-barrier">Select Barrier:</label>
+            </b-col>
+            <b-col sm="7">
+                <b-input-group append="%" class="mb-2 mr-sm-2 mb-sm-0">
+                    <b-form-input
+                            id="input-relative-to-value"
+                            type="number"
+                            @change="onChange"
+                            :state="validatedStartLevel"
+                            v-model="relativeToValue"
+                            placeholder="Enter Participation Rate as a percentage."
+                            v-b-tooltip.hover
+                            title="Percentage of underlying at start which is considered for receiving return. This is plotted as a horizontal green line.">
+                    </b-form-input>
+                </b-input-group>
+            </b-col>
+        </b-row>
+        <b-row class="my-1"
+               v-if="this.numberOfCouponLevels > 0">
             <b-table-simple hover small caption-top responsive>
                 <caption>Input barrier events below:</caption>
                 <b-thead head-variant="dark">
@@ -94,18 +147,6 @@
                                           v-model="event.incomeBarriers[column.itemIndex]"
                                           :state="validateIncomeBarrierState(event.index, column.itemIndex)"
                             ></b-form-input>
-                            <b-form-radio-group
-                                    size="sm"
-                                    v-if="column.type === `style`"
-                                    v-model="event.couponType"
-                                    @input="eventDataChanged(event.index)"
-                                    name="radios-btn-default"
-                                    v-b-tooltip.hover
-                                    title="Payoff style of this event. Fixed will pay a fixed percent payoff when the event activates. Relative will pay the difference of the asset and the event level.">
-                                <b-form-radio value="fixed">Fixed</b-form-radio>
-                                <b-form-radio value="relative">Relative</b-form-radio>
-                            </b-form-radio-group>
-
                         </b-td>
                     </b-tr>
                 </b-tbody>
@@ -119,34 +160,12 @@
                 </b-tfoot>
             </b-table-simple>
         </b-row>
-        <b-modal id="frequency-schedule-modal"
-                 title="Event Scheduler"
-                 modal-ok="Apply"
-                 @ok="applyFrequencySchedule">
-            <b-row>
-                <b-col sm="5">
-                    <label for="input-tenor">Tenor:</label>
-                </b-col>
-                <b-col sm="7">
-                    <b-input-group>
-                        <b-form-input v-model="tenor"></b-form-input>
-                    </b-input-group>
-                </b-col>
-            </b-row>
-            <b-row>
-                <b-col sm="5">
-                    <label for="input-event-frequency">Frequency:</label>
-                </b-col>
-                <b-col sm="7">
-                    <b-form-input v-model="frequency"></b-form-input>
-                </b-col>
-            </b-row>
-        </b-modal>
     </b-container>
 </template>
 
 <script>
     import * as moment from 'moment';
+    // import {demoProducts} from "@/components/resources";
 
     export default {
         name: "BarrierEventControls",
@@ -165,7 +184,10 @@
             return {
                 numberOfIncomeEvents: defaultEventDates.length,
                 eventDates: defaultEventDates,
-                isMemory: "false",
+                payoffStyle: "fixed",
+                relativeTo: "value",
+                relativeToBarrier: null,
+                relativeToValue: 1,
                 numberOfCouponLevels: defaultNumberOfCouponLevels,
                 tableColumns: defaultTableColumns,
                 tenor: defaultTenor,
@@ -178,6 +200,25 @@
                 // Note that the plotter needs to wait for the #arc element before initializing.
                 this.onChange();
             })
+        },
+        computed: {
+            barrierEventSelections() {
+
+                let events = [{
+                    value: null,
+                    text: "Please select an barrier event."
+                }];
+
+                if (this.incomeBarrierEvents) {
+                    events.push(this.incomeBarrierEvents.map(event => {
+                        return {
+                            value: event.key,
+                            text: event.label
+                        }
+                    }));
+                }
+                return events;
+            }
         },
         methods: {
             validateEventDate(index) {
@@ -192,10 +233,8 @@
                 }
 
                 const eventToEnd = eventDate.diff(endDate, 'days');
-                if (eventToEnd > 0) {
-                    return false;
-                }
-                return true;
+                return eventToEnd <= 0;
+
             },
             onChange() {
                 // Re-raise the change event for this component
@@ -276,6 +315,9 @@
                             columnIndex: columnIndex++
                         }
                     });
+
+                this.incomeBarrierEvents = barrierColumns;
+
                 const payoffColumns = [...Array(this.numberOfCouponLevels + 1).keys()]
                     .map(index => {
                         return {
@@ -320,36 +362,34 @@
                 this.onChange()
             },
             validatePayoffState(eventIndex, payoffIndex) {
-                if (!this.incomeBarrierEvents) {
+                if (!this.eventDates) {
                     return null;
                 }
-                const incomeEvent = this.incomeBarrierEvents[eventIndex];
-                const payoffLevel = Number(incomeEvent.couponPayoofs[payoffIndex]);
+                const incomeEvent = this.eventDates[eventIndex];
+                const payoffLevel = Number(incomeEvent.couponPayoffs[payoffIndex]);
 
-                if (payoffLevel < 0) {
-                    return false;
-                }
-                return true;
+                return payoffLevel >= 0;
+
             },
             validateIncomeBarrierState(eventIndex, incomeBarrierIndex) {
-                if (!this.incomeBarrierEvents) {
+                if (!this.eventDates) {
                     return null;
                 }
-                const incomeEvent = this.incomeBarrierEvents[eventIndex];
+                const incomeEvent = this.eventDates[eventIndex];
                 const incomeBarrierLevel = Number(incomeEvent.incomeBarriers[incomeBarrierIndex]);
 
                 if (incomeBarrierLevel <= 0) {
                     return false;
                 }
 
-                if (incomeBarrierIndex < incomeBarrierLevel.length - 1) {
+                if (incomeBarrierIndex < incomeEvent.incomeBarriers.length - 1) {
                     // If this is not the final barrier level, find the next barrier as upper bound
                     const incomeBarrierLevelUpperBound = Number(incomeEvent.incomeBarriers[incomeBarrierIndex + 1]);
                     if (incomeBarrierLevelUpperBound <= incomeBarrierLevel) return false;
                 }
 
                 if (incomeBarrierIndex > 0) {
-                    // If this is not the final barrier level, find the previous barrier as lower bound
+                    // If this is not the first barrier level, find the previous barrier as lower bound
                     const incomeBarrierLevelLowerBound = Number(incomeEvent.incomeBarriers[incomeBarrierIndex - 1]);
                     if (incomeBarrierLevelLowerBound >= incomeBarrierLevel) return false;
                 }

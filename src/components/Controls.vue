@@ -35,14 +35,6 @@
                                           :payload="payload">
                     </BarrierEventControls>
                 </b-tab>
-                <b-tab title="Range Accrual Feature" class="input-tab-group">
-                    <RangeAccrualControls class="input-card"
-                                          @change="rangeAccrualEventControlChange"
-                                          v-bind:startDate="this.payload.keyDates.startDate"
-                                          v-bind:finalMaturityDate="this.payload.keyDates.finalMaturityDate"
-                                          :payload="payload">
-                    </RangeAccrualControls>
-                </b-tab>
             </b-tabs>
         </b-card>
 
@@ -61,7 +53,6 @@
     import BarrierEventControls from '@/components/controls/BarrierEventControls.vue'
     import AssetDataControls from '@/components/controls/AssetDataControls.vue'
     import BasicControls from '@/components/controls/BasicControls.vue'
-    import RangeAccrualControls from '@/components/controls/RangeAccrualControls.vue'
     import PayoffGraph from '@/components/canvas/PayoffGraph.vue'
     import SimulationGraph from '@/components/canvas/SimulationGraph.vue'
     import {
@@ -78,8 +69,7 @@
             SimulationGraph: SimulationGraph,
             BasicControls: BasicControls,
             BarrierEventControls: BarrierEventControls,
-            AssetDataControls: AssetDataControls,
-            RangeAccrualControls: RangeAccrualControls
+            AssetDataControls: AssetDataControls
         },
         data() {
             const defaultCurrency = "USD";
@@ -100,8 +90,7 @@
                     startLevel: defaultStartLevel,
                     currency: defaultCurrency,
                     assetData: null,
-                    incomeBarrierEvents: [],
-                    rangeAccrualEvents: []
+                    incomeBarrierEvents: []
                 }
             }
         },
@@ -125,9 +114,6 @@
             },
             barrierEventControlChange(incomeBarrierEvents) {
                 this.payload.incomeBarrierEvents = incomeBarrierEvents;
-            },
-            rangeAccrualEventControlChange(rangeAccrualEvents) {
-                this.payload.rangeAccrualEvents = rangeAccrualEvents;
             },
             loadDemoProduct(product) {
                 this.payload = {...product.payload};

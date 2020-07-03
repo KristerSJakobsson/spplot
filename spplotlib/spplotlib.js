@@ -27,7 +27,7 @@ export class SimulationGraphPlotter {
         return this;
     }
 
-    _readData() {
+    _loadModel() {
         this.model = new SimulationModel()
             .setNotional(this.productData.notional)
             .setCurrency(this.productData.currency)
@@ -44,26 +44,34 @@ export class SimulationGraphPlotter {
         this.plotter.updateTimeScale(this.model.startDate, this.model.finalMaturityDate);
     }
 
-    _updateCouponBarrierLimits() {
-        // When we have asset data, update the y-axis (coupon level axis) based on data max
+    _updateCouponBarrierScale() {
+        let yMax = 2.0;
         if (this.model.assetData) {
-            const minAssetValue = 0.0;
-            const maxAssetValue = this.model.assetData.reduce(
-                (previousResult, currentValue) => Math.max(previousResult, currentValue.value),
-                minAssetValue);
-            this.plotter.updateCouponBarrierScale(minAssetValue, maxAssetValue + 0.1);
+            yMax = Math.max(yMax, this.model.assetDataMax);
         }
+        this.plotter.updateCouponBarrierScale(0.0, yMax);
     }
 
     _plotEventResults() {
-        this.plotter.plotDots([], RETURN_PRICE_CLASS, "red")
+        const returnEvents = this.model.returnEvents
+        if (returnEvents) {
+            const dots = returnEvents
+                .filter(payoffRange => payoffRange.payoff > 0.0)
+                .map(event => {
+                return {
+                    date: event.eventDate,
+                    value: event.assetLevel,
+                    comment: event.comment
+                }
+            })
+            this.plotter.plotDots(dots, RETURN_PRICE_CLASS, "red")
+        }
     }
 
     _updateAssetData() {
         // When we have asset data, plot it
         if (this.model.assetData) {
             this.plotter.plotAssetData(this.model.assetData, ASSET_DATA_CLASS, "black", 1);
-            this._updateCouponBarrierLimits();
             this._plotEventResults();
         }
     }
@@ -98,7 +106,7 @@ export class SimulationGraphPlotter {
 
     _plotEvents() {
         const returnEvents = this.model.returnEvents
-        if (returnEvents != null) {
+        if (returnEvents) {
             let colorIndex = 0;
             const colors = ["orange", "purple", "red"];
 
@@ -140,7 +148,7 @@ export class SimulationGraphPlotter {
 
     plot() {
         // Lazy load the SVG & Axis
-        this._readData();
+        this._loadModel();
         if (!this.plotter) {
             this.plotter = new SimulationPlotter(
                 this.bindTarget,
@@ -150,6 +158,7 @@ export class SimulationGraphPlotter {
         }
         // Graph scaling
         this._updateTimeScale(); // Update X-axis
+        this._updateCouponBarrierScale(); // Update Y-axis
 
         // Events
         this._updateProductLevels(); // Update Start/End level lines

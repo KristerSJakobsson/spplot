@@ -11,6 +11,7 @@ export class SimulationModel {
     startDate;
     finalMaturityDate;
     assetData;
+    assetDataMax;
     fixing; // Fixing value in original currency
     incomeBarrierEvents; // Barrier event data
     returnEvents; // Events after executing
@@ -107,7 +108,7 @@ export class SimulationModel {
         if (!fixing) {
             this.fixing = null;
             this.maturityLevel = null;
-            console.warn(`Not possible to render graph since asset has no value for fixing date ${formatDate(this.startDate)}.`);
+            console.log(`Not possible to render graph since asset has no value for fixing date ${formatDate(this.startDate)}.`);
             return this;
         }
 
@@ -139,9 +140,16 @@ export class SimulationModel {
                 };
             });
 
+        // When we have asset data, update the y-axis (coupon level axis) based on data max
+
+        let minAssetValue = 0.0;
+        this.assetDataMax = this.assetData.reduce(
+            (previousResult, currentValue) => Math.max(previousResult, currentValue.value),
+            minAssetValue);
+
         if (this.startLevel && this.maturityLevel) {
             if (!this.participationRate && this.participationRate !== 0.0) {
-                console.warn(`Data is missing Participation Rate, assume 100%`)
+                console.log(`Data is missing Participation Rate, assume 100%`)
                 this.participationRate = 1.0;
             }
 
@@ -164,7 +172,7 @@ export class SimulationModel {
                     const replacementDate = eventAssetData.date;
                     const replacementValue = eventAssetData.value;
                     if (parseDate(event.eventDate) !== parseDate(replacementDate)) {
-                        console.warn(`The selected underlying is missing data for event date ${event.eventDate}, used value for previous date ${replacementDate}.`)
+                        console.log(`The selected underlying is missing data for event date ${event.eventDate}, used value for previous date ${replacementDate}.`)
                     }
 
                     event.evaluate(replacementDate, replacementValue);

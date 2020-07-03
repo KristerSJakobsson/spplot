@@ -101,9 +101,24 @@ export class IncomeBarrierEvent extends Event {
     }
 
     evaluate(actualEventDate, assetValue) {
+        let previousValue = 0.0;
+        const payoffIndex = this.barrierLevels.findIndex(value =>
+        {
+            let result = false;
+            if (assetValue <= value && assetValue > previousValue)
+                result = true;
+            previousValue = value;
+            return result;
+        });
 
-        const payoffIndex = assetValue < this.barrierLevels[0] ? 1 : this.barrierLevels.find(value => value >= assetValue) + 1;
-        let payoff = this.couponPayoffs[payoffIndex];
+        let payoff;
+        if (payoffIndex === -1) {
+            payoff = this.couponPayoffs[this.couponPayoffs.length - 1];
+        }
+        else {
+            payoff = this.couponPayoffs[payoffIndex];
+        }
+
         const difference = assetValue - this.barrierLevels[payoffIndex - 1];
         const executed = difference >= 0.0 && payoff > 0.0;
 

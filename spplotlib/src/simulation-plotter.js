@@ -30,8 +30,6 @@ export class SimulationPlotter {
         this.height = height;
         this.margin = margin;
         this.bindTarget = bindTarget;
-        this.yMin = 0.0;
-        this.yMax = 2.0;
 
         // Create SVG element with margins
         this.svg = d3.select(bindTarget)
@@ -89,7 +87,7 @@ export class SimulationPlotter {
     _initializeCouponBarrierScale() {
         // Add y-axis
         this.yAxis = d3.scaleLinear()
-            .domain([this.yMin, this.yMax])
+            .domain([0, 2])
             .range([this.height, 0]);
 
         this.yRange = this.svg.append("g")
@@ -261,8 +259,8 @@ export class SimulationPlotter {
             .transition()
             .duration(TRANSFORMATION_SPEED)
             .attr("r", 3)
-            .attr("cy", d => this.yAxis(d.value))
-            .attr("cx", d => this.xAxis(d.date))
+            .attr("cy", data => this.yAxis(data.value))
+            .attr("cx", data => this.xAxis(data.date))
             .style("fill", fillColor);
 
     }

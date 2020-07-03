@@ -1,6 +1,6 @@
 <template>
-    <b-container>
-        <b-row>
+    <b-container fluid>
+        <b-row class="my-1">
             <b-col sm="3">
                 <label for="input-start-date">Start:</label>
             </b-col>
@@ -17,7 +17,7 @@
                 </b-form-invalid-feedback>
             </b-col>
         </b-row>
-        <b-row>
+        <b-row class="my-1">
             <b-col sm="3">
                 <label for="input-final-maturity-event">Final Maturity:</label>
             </b-col>
@@ -35,7 +35,7 @@
                 </b-form-invalid-feedback>
             </b-col>
         </b-row>
-        <b-row>
+        <b-row class="my-1">
             <b-col sm="3">
                 <label for="input-start-level">Start Level:</label>
             </b-col>
@@ -53,7 +53,7 @@
             </b-col>
         </b-row>
 
-        <b-row>
+        <b-row class="my-1">
             <b-col sm="3">
                 <label for="input-participation-rate">Participation Rate:</label>
             </b-col>
