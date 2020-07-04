@@ -27,7 +27,7 @@
                                        @change="assetDataControlChange"
                                        :payload="payload"></AssetDataControls>
                 </b-tab>
-                <b-tab title="Income Barrier Feature" class="input-tab-group">
+                <b-tab title="Income Feature" class="input-tab-group">
                     <BarrierEventControls class="input-card"
                                           @change="barrierEventControlChange"
                                           v-bind:startDate="this.payload.keyDates.startDate"

@@ -11,6 +11,14 @@ const Y_LABEL = "Coupon Level";
 
 const TRANSFORMATION_SPEED = 500;
 
+export class Plottable {
+    plot(plotter) {
+        if (!plotter) {
+            console.log("Undefined plotter passed to plot function.")
+        }
+    }
+}
+
 export class SimulationPlotter {
     svg;
     xAxis;

@@ -2,16 +2,16 @@
     <b-container fluid>
         <b-row class="my-1">
             <b-col sm="5">
-                <label for="input-number-of-coupon-levels">Number of Coupon Levels:</label>
+                <label for="input-number-of-payoff-barriers">Number of Payoff Barriers:</label>
             </b-col>
             <b-col sm="7">
-                <b-form-spinbutton id="input-number-of-coupon-levels"
+                <b-form-spinbutton id="input-number-of-payoff-barriers"
                                    min="0"
                                    step="1"
-                                   v-model="numberOfCouponLevels"
+                                   v-model="numberOfBarriers"
                                    @change="updateColumns"
                                    v-b-tooltip.hover
-                                   title="Sets the total number of income events for this product."></b-form-spinbutton>
+                                   title="Sets the total number of payoff barriers for this product."></b-form-spinbutton>
             </b-col>
         </b-row>
         <b-row class="my-1">
@@ -24,14 +24,14 @@
                         buttons
                         v-model="payoffStyle"
                         @input="onChange">
-                    <b-form-radio value=fixed>Fixed Coupons</b-form-radio>
-                    <b-form-radio value=relative>Relative Coupons</b-form-radio>
-                    <b-form-radio value="rangeAccrual">Range Accrual</b-form-radio>
+                    <b-form-radio value=fixed>Fixed Coupon</b-form-radio>
+                    <b-form-radio value=fixedWithMemory>Fixed Coupon with Memory</b-form-radio>
+                    <b-form-radio value=relative>Relative Coupon</b-form-radio>
+                    <b-form-radio value="rangeAccrual" disabled>Range Accrual</b-form-radio>
                 </b-form-radio-group>
             </b-col>
         </b-row>
-        <b-row v-if="payoffStyle === `relative`"
-               class="my-1">
+        <b-row class="my-1">
             <b-col sm="5">
                 <label for="input-relative-to-what">Relative to:</label>
             </b-col>
@@ -40,13 +40,14 @@
                         id="input-relative-to"
                         buttons
                         v-model="relativeTo"
+                        :disabled="payoffStyle !== `relative`"
                         @input="onChange">
                     <b-form-radio value=value>Value</b-form-radio>
-                    <b-form-radio value=barrier>Payoff Barrier</b-form-radio>
+                    <b-form-radio value=barrier>Barrier</b-form-radio>
                 </b-form-radio-group>
             </b-col>
         </b-row>
-        <b-row v-if="payoffStyle === `relative` && relativeTo === `barrier`"
+        <b-row v-if="relativeTo === `barrier`"
                class="my-1">
             <b-col sm="5">
                 <label for="input-relative-to-barrier">Select Barrier:</label>
@@ -56,16 +57,17 @@
                         id="input-relative-to-barrier"
                         buttons
                         v-model="relativeToBarrier"
+                        :disabled="payoffStyle !== `relative`"
                         :options="barrierEventSelections"
                         :state="relativeToBarrier !== null"
                         @input="onChange">
                 </b-form-select>
             </b-col>
         </b-row>
-        <b-row v-if="payoffStyle === `relative` && relativeTo === `value`"
+        <b-row v-if="relativeTo === `value`"
                class="my-1">
             <b-col sm="5">
-                <label for="input-relative-to-barrier">Select Barrier:</label>
+                <label for="input-relative-to-value">Input Value:</label>
             </b-col>
             <b-col sm="7">
                 <b-input-group append="%" class="mb-2 mr-sm-2 mb-sm-0">
@@ -73,17 +75,17 @@
                             id="input-relative-to-value"
                             type="number"
                             @change="onChange"
-                            :state="validatedStartLevel"
+                            :disabled="payoffStyle !== `relative`"
                             v-model="relativeToValue"
-                            placeholder="Enter Participation Rate as a percentage."
+                            placeholder="Enter absolute barrier for relative payoff."
                             v-b-tooltip.hover
-                            title="Percentage of underlying at start which is considered for receiving return. This is plotted as a horizontal green line.">
+                            title="Specify what value the payoff should be relative.">
                     </b-form-input>
                 </b-input-group>
             </b-col>
         </b-row>
         <b-row class="my-1"
-               v-if="this.numberOfCouponLevels > 0">
+               v-if="this.numberOfBarriers > 0">
             <b-table-simple hover small caption-top responsive>
                 <caption>Input barrier events below:</caption>
                 <b-thead head-variant="dark">
@@ -177,7 +179,7 @@
         data() {
             const defaultEventDates = [];
             const defaultTableColumns = [];
-            const defaultNumberOfCouponLevels = 0;
+            const defaultNumberOfBarriers = 0;
             const defaultFrequency = "3M";
             const defaultTenor = "1Y";
 
@@ -187,8 +189,9 @@
                 payoffStyle: "fixed",
                 relativeTo: "value",
                 relativeToBarrier: null,
-                relativeToValue: 1,
-                numberOfCouponLevels: defaultNumberOfCouponLevels,
+                relativeToValue: 100,
+                numberOfBarriers: defaultNumberOfBarriers,
+                numberOfPayoffs: defaultNumberOfBarriers,
                 tableColumns: defaultTableColumns,
                 tenor: defaultTenor,
                 frequency: defaultFrequency
@@ -238,15 +241,30 @@
             },
             onChange() {
                 // Re-raise the change event for this component
+                const payoffStyle = this.payoffStyle;
                 const barrierEvents = this.eventDates
                     .filter(value => value.visible === true)
                     .map(value => {
+                        let payoffData = {
+                            payoffStyle: payoffStyle
+                        };
+                        switch(payoffStyle) {
+                            case "relative":
+                                if (this.relativeTo === "barrier") {
+                                    payoffData.relativeToBarrier = this.relativeToBarrier;
+                                }
+                                else {
+                                    payoffData.relativeToValue = this.relativeToValue;
+                                }
+                                break;
+                        }
+
                         return {
                             incomeBarriers: value.incomeBarriers.map(barrier => Number(barrier) / 100.0),
                             couponPayoffs: value.couponPayoffs.map(payoff => Number(payoff) / 100.0),
                             date: value.date,
                             couponType: value.couponType,
-                            isMemory: this.isMemory === "true"
+                            payoffData: payoffData
                         };
                     });
 
@@ -293,9 +311,8 @@
                             visible: true,
                             default: true,
                             index: index,
-                            incomeBarriers: new Array(this.numberOfCouponLevels).fill("100"),
-                            couponType: "relative",
-                            couponPayoffs: new Array(this.numberOfCouponLevels + 1).fill("0")
+                            incomeBarriers: new Array(this.numberOfBarriers).fill("100"),
+                            couponPayoffs: new Array(this.numberOfBarriers).fill("0")
                         };
                         this.eventDates.push(result);
                     }
@@ -303,12 +320,14 @@
                 this.onChange();
             },
             updateColumns() {
+                this.numberOfPayoffs = this.numberOfBarriers;
+
                 let columnIndex = 1;
-                const barrierColumns = [...Array(this.numberOfCouponLevels).keys()]
+                const barrierColumns = [...Array(this.numberOfBarriers).keys()]
                     .map(index => {
                         return {
                             key: `barrier-${index}`,
-                            label: `Barrier ${index} (%)`,
+                            label: `Barrier ${index + 1} (%)`,
                             type: "barrier",
                             itemIndex: index,
                             override: "100",
@@ -318,7 +337,7 @@
 
                 this.incomeBarrierEvents = barrierColumns;
 
-                const payoffColumns = [...Array(this.numberOfCouponLevels + 1).keys()]
+                const payoffColumns = [...Array(this.numberOfPayoffs).keys()]
                     .map(index => {
                         return {
                             key: `payoff-${index}`,

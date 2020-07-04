@@ -1,5 +1,11 @@
 // import * as d3 from "d3";
+import {Plottable} from "./simulation-plotter.js";
 import {formatDate, formatPercent} from "./formatting-utils.js";
+import {parseDate} from "./formatting-utils";
+
+const BARRIER_EVENT_CLASS = "spPlotBarrierEventLines"
+const FINAL_MATURITY_EVENT_CLASS = "spFinalMaturityEventLine"
+
 //
 // class EventPayoff {
 //     startLevel
@@ -13,75 +19,103 @@ import {formatDate, formatPercent} from "./formatting-utils.js";
 //     }
 // }
 
-export class Event {
+class Event extends Plottable {
     eventDate
     comment
     executed
     assetLevel
     dependentEvents
+    isFutureEvent
+    identifier
 
-    constructor(plannedEventDate, comment, executed, dependentEvents) {
+    constructor(identifier, plannedEventDate, comment, dependentEvents) {
+        super();
         this.eventDate = plannedEventDate;
         this.comment = comment;
-        this.executed = executed;
         this.dependentEvents = dependentEvents;
+        this.identifier = identifier;
         this.assetLevel = null;
+        this.executed = false;
+        this.isFutureEvent = true;
     }
 
-    evaluate(actualEventDate, assetValue) {
-        console.log(`Evaulated event ${actualEventDate}, ${assetValue}`);
-        this.eventDate = actualEventDate;
-        this.assetLevel = assetValue;
-    }
+    evaluate(assetData) {
+        const lastAssetData = assetData[assetData.length - 1];
+        if (lastAssetData.date < this.eventDate) {
+            // The last asset data entry is before this event, so it has not yet been executed
+            this.assetLevel = null;
+            this.isFutureEvent = true;
+            return;
+        }
 
-    getPayoffRanges() {
-        return [{
-            min: 0.0,
-            max: 1.0,
-            payoff: 1.0
-        }];
+        // Find the last date before the event date
+        const eventAssetData = assetData.reduce(
+            (previous, current) => {
+                if (current.date <= this.eventDate && previous.date < current.date) {
+                    return current;
+                }
+                return previous;
+            },
+            assetData[0]);
+
+        const replacementDate = eventAssetData.date;
+        const replacementValue = eventAssetData.value;
+        if (parseDate(this.eventDate) !== parseDate(replacementDate)) {
+            console.log(`The selected underlying is missing data for event date ${this.eventDate}, used value for previous date ${replacementDate}.`)
+        }
+
+        this.isFutureEvent = false;
+        this.eventDate = replacementDate;
+        this.assetLevel = replacementValue;
     }
 
 }
 
 export class FinalMaturityEvent extends Event {
-    /* Capital Protected -> Get the investment back */
+    /* CapitalIncomeBarrierEvent Protected -> Get the investment back */
 
     startLevel
     participationRate
+    maturityPayoff
 
-    constructor(finalMaturityDate, startLevel, participationRate) {
+    constructor(identifier, finalMaturityDate, startLevel, participationRate) {
         let comment = `Date: ${formatDate(finalMaturityDate)}`;
-        super(finalMaturityDate,  comment, false, null);
+        super(identifier, finalMaturityDate, comment, null);
         this.startLevel = startLevel;
         this.participationRate = participationRate;
-        this.payoff = startLevel;
+        this.maturityPayoff = startLevel;
     }
 
-    evaluate(actualEventDate, assetValue) {
-        const difference = assetValue - this.startLevel;
-        const payoff = this.startLevel + (Math.max(0.0, difference) * this.participationRate);
-        this.payoff = payoff;
+    evaluate(assetData) {
+        super.evaluate(assetData);
+
+        if (!this.assetLevel) {
+            this.executed = false;
+            this.comment = `This product has not reached maturity.`
+            this.isFutureEvent = true;
+            return;
+        }
+
+        const difference = this.assetLevel - this.startLevel;
+        this.maturityPayoff = this.startLevel + (Math.max(0.0, difference) * this.participationRate);
         this.executed = true;
-        this.eventPayoff = payoff;
-        this.eventDate = actualEventDate;
-        this.assetLevel = assetValue;
+        this.isFutureEvent = false;
     }
 
     getPayoffRanges() {
-        let max = 1.0;
-        if (this.assetLevel) {
-            max = this.assetLevel;
-        }
-
         return [{
             min: 0.0,
-            max: max,
-            payoff: this.payoff
+            max: Infinity,
+            payoff: this.maturityPayoff
         }];
     }
 
+    plot(plotter) {
+        // TODO: What to plot for the maturity event?
 
+        plotter.plotBarrierLines([], `${FINAL_MATURITY_EVENT_CLASS}-${this.identifier}`);
+
+    }
 }
 
 export class IncomeBarrierEvent extends Event {
@@ -90,42 +124,55 @@ export class IncomeBarrierEvent extends Event {
     barrierLevels
     couponPayoffs
 
-    constructor(plannedEventDate, barrierLevels, couponType, couponPayoffs, isMemory, dependentEvents) {
-        super(plannedEventDate,
+    constructor(identifier, plannedEventDate, barrierLevels, couponType, couponPayoffs, isMemory, dependentEvents) {
+        super(identifier,
+            plannedEventDate,
             "Not Executed",
-            false,
             dependentEvents);
         this.isMemory = isMemory;
         this.barrierLevels = barrierLevels;
         this.couponPayoffs = couponPayoffs;
     }
 
-    evaluate(actualEventDate, assetValue) {
+    evaluate(assetData) {
+        super.evaluate(assetData);
+
+        if (!this.assetLevel) {
+            this.executed = false;
+            this.comment = `This event has not yet been executed.`
+            return;
+        }
+
         let previousValue = 0.0;
-        const payoffIndex = this.barrierLevels.findIndex(value =>
-        {
+        const payoffRangeIndex = this.barrierLevels.findIndex(value => {
             let result = false;
-            if (assetValue <= value && assetValue > previousValue)
+            if (this.assetLevel <= value && this.assetLevel > previousValue)
                 result = true;
             previousValue = value;
             return result;
         });
 
+        // If the underlying is in payoffRange #2 then we get the coupon from lower payoff range # 1
         let payoff;
-        if (payoffIndex === -1) {
+        if (payoffRangeIndex === -1) {
             payoff = this.couponPayoffs[this.couponPayoffs.length - 1];
+            this.executed = true;
+        }
+        else if (payoffRangeIndex === 0) {
+            payoff = 0.0;
+            this.executed = false;
         }
         else {
-            payoff = this.couponPayoffs[payoffIndex];
+            payoff = this.couponPayoffs[payoffRangeIndex - 1];
+            this.executed = true;
         }
 
-        const difference = assetValue - this.barrierLevels[payoffIndex - 1];
-        const executed = difference >= 0.0 && payoff > 0.0;
-
-        if (this.couponType === "relative") {
-            payoff *= Math.max(difference, 0.0);
-        }
-
+        // const difference = this.assetLevel - this.barrierLevels[payoffRangeIndex - 1];
+        //
+        // if (this.couponType === "relative") {
+        //     payoff *= Math.max(difference, 0.0);
+        // }
+        //
         // let dependentEvents = null;
         // if (this.previousEvent) {
         //     dependentEvents = [previousEvent];
@@ -137,13 +184,10 @@ export class IncomeBarrierEvent extends Event {
 
         let comment = `Date: ${formatDate(this.eventDate)}`;
         comment += `<br>Income Payment: ${formatPercent(payoff, 2)}`;
-        if (!executed) {
+        if (!this.executed) {
             comment += `<br>Not Executed`;
         }
         this.comment = comment;
-        this.payoff = payoff;
-        this.eventDate = actualEventDate;
-        this.assetLevel = assetValue;
     }
 
     checkMemoryFeature() {
@@ -184,6 +228,44 @@ export class IncomeBarrierEvent extends Event {
         });
         return payoffRanges;
     }
+
+    plot(plotter) {
+        this._plotBarrier(plotter);
+    }
+
+    _plotBarrier(plotter) {
+        let colorIndex = 0;
+        const colors = ["orange", "purple", "red"];
+
+        const resetColor = () => {
+            colorIndex = 0;
+        }
+
+        const nextColor = () => {
+            colorIndex = colorIndex + 1;
+            if (colors.length === colorIndex) {
+                resetColor();
+            }
+            return colors[colorIndex];
+        };
+
+
+        const payoffs = this.getPayoffRanges();
+
+        const plotBarriers = payoffs
+            .filter(payoffRange => payoffRange.payoff > 0.0)
+            .map(payoffRange => {
+                return {
+                    min: payoffRange.min,
+                    max: payoffRange.max,
+                    eventDate: this.eventDate,
+                    color: nextColor()
+                }
+            });
+        plotter.plotBarrierLines(plotBarriers, `${BARRIER_EVENT_CLASS}-${this.identifier}`);
+
+    }
+
 }
 
 //

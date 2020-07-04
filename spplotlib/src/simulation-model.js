@@ -1,5 +1,12 @@
-import {FinalMaturityEvent, IncomeBarrierEvent} from "./simulation-event.js"
+import {FinalMaturityEvent} from "./simulation-event.js"
+import {IncomeBarrierEventSequence} from "./simulation-event-sequence.js"
 import {formatDate, parseDate} from "./formatting-utils.js"
+
+// CSS Classes
+const ASSET_DATA_CLASS = "spPlotAssetLine"
+const START_LINE_CLASS = "spPlotStartLine"
+const END_LINE_CLASS = "spPlotEndLine"
+
 
 export class SimulationModel {
     notional; // Notional in currency
@@ -13,8 +20,12 @@ export class SimulationModel {
     assetData;
     assetDataMax;
     fixing; // Fixing value in original currency
-    incomeBarrierEvents; // Barrier event data
-    returnEvents; // Events after executing
+    incomeBarrierEventSequence; // Barrier event data
+    eventSequences; // Events after executing
+
+    constructor() {
+        this.eventSequences = [];
+    }
 
     setNotional(notional) {
         this.notional = Number(notional);
@@ -28,11 +39,13 @@ export class SimulationModel {
 
     setParticipationRate(participationRate) {
         this.participationRate = Number(participationRate);
+        this._parse_final_maturity_event();
         return this;
     }
 
     setStartLevel(startLevel) {
         this.startLevel = Number(startLevel);
+        this._parse_final_maturity_event();
         return this;
     }
 
@@ -46,12 +59,16 @@ export class SimulationModel {
         // Parse key dates using d3
         this.startDate = parseDate(keyDates.startDate);
         this.finalMaturityDate = parseDate(keyDates.finalMaturityDate);
+
+        this._parse_final_maturity_event();
         return this;
     }
 
     setIncomeBarrierEvents(incomeBarrierEvents) {
         if (incomeBarrierEvents) {
-            this.incomeBarrierEvents = incomeBarrierEvents.map(data => {
+            const eventSequence = new IncomeBarrierEventSequence();
+
+            incomeBarrierEvents.map(data => {
                 return {
                     date: parseDate(data.date),
                     incomeBarriers: data.incomeBarriers.map(value => Number(value)),
@@ -59,46 +76,34 @@ export class SimulationModel {
                     couponPayoffs: data.couponPayoffs.map(value => Number(value)),
                     isMemory: Boolean(data.isMemory)
                 };
-            });
-        }
-        this._calculate_return_events();
-        return this;
-    }
-
-
-    _parse_final_maturity_event() {
-        return new FinalMaturityEvent(
-            this.finalMaturityDate,
-            this.startLevel,
-            this.participationRate);
-    }
-
-    _parse_income_barrier_events() {
-        let parsedIncomeBarrierEvents = [];
-
-        if (this.incomeBarrierEvents) {
-            this.incomeBarrierEvents
+            })
                 .sort((first, second) => {
                     if (first.date < second.date) return -1;
                     if (first.date > second.date) return 1;
                     return 0;
                 })
                 .forEach(event => {
-                    const eventDate = event.date;
-
-                    const previousEvent = parsedIncomeBarrierEvents.slice(-1)[0];
-                    const incomeBarrierEvent = new IncomeBarrierEvent(
-                        eventDate,
+                    eventSequence.add(
+                        event.date,
                         event.incomeBarriers,
                         event.couponType,
                         event.couponPayoffs,
-                        event.isMemory,
-                        previousEvent);
-
-                    parsedIncomeBarrierEvents.push(incomeBarrierEvent);
+                        event.isMemory);
                 });
+            this.incomeBarrierEventSequence = eventSequence;
         }
-        return parsedIncomeBarrierEvents;
+
+        return this;
+    }
+
+    _parse_final_maturity_event() {
+        if (this.finalMaturityDate && this.startLevel && this.participationRate) {
+            this.finalMaturityEvent = new FinalMaturityEvent(
+                "finalMaturityEvent",
+                this.finalMaturityDate,
+                this.startLevel,
+                this.participationRate);
+        }
     }
 
     setAssetData(assetData) {
@@ -155,41 +160,88 @@ export class SimulationModel {
 
         }
 
-        if (this.returnEvents) {
-            this.returnEvents
-                .forEach(event => {
-
-                    // Find the last date before the event date
-                    const eventAssetData = this.assetData.reduce(
-                        (previous, current) => {
-                            if (current.date <= event.eventDate && previous.date < current.date) {
-                                return current;
-                            }
-                            return previous;
-                        },
-                        this.assetData[0]);
-
-                    const replacementDate = eventAssetData.date;
-                    const replacementValue = eventAssetData.value;
-                    if (parseDate(event.eventDate) !== parseDate(replacementDate)) {
-                        console.log(`The selected underlying is missing data for event date ${event.eventDate}, used value for previous date ${replacementDate}.`)
-                    }
-
-                    event.evaluate(replacementDate, replacementValue);
-                });
+        this._updateEventSequence();
+        if (this.eventSequences && this.eventSequences.length > 0) {
+            this.eventSequences.forEach(eventSequence => {
+                eventSequence.evaluate(this.assetData);
+            });
         }
 
         return this;
     }
 
-    _calculate_return_events() {
-        let returnEvents = [];
-        returnEvents = returnEvents.concat(this._parse_income_barrier_events())
-        returnEvents.push(this._parse_final_maturity_event());
-        this.returnEvents = returnEvents.sort((first, second) => {
-            if (first.date < second.date) return -1;
-            if (first.date > second.date) return 1;
-            return 0;
-        });
+    _updateTimeScale(plotter) {
+        plotter.updateTimeScale(this.startDate, this.finalMaturityDate);
     }
+
+    _updateCouponBarrierScale(plotter) {
+        let yMax = 2.0;
+        if (this.assetData) {
+            yMax = Math.max(yMax, this.assetDataMax);
+        }
+        plotter.updateCouponBarrierScale(0.0, yMax);
+    }
+
+    _plotAssetData(plotter) {
+        // When we have asset data, plot it
+        if (this.assetData) {
+            plotter.plotAssetData(this.assetData, ASSET_DATA_CLASS, "black", 1);
+        }
+    }
+
+    _plotProductLevels(plotter) {
+        /*
+        * Start Level : Input in percent, straight line
+        * End Level: [Only when asset available] Whatever the asset is at the End Date
+        * Return Events: Various return events, indicated by dots
+        *  */
+
+        if (this.startLevel) {
+            const startLevelData = [
+                {date: this.startDate, value: Number(this.startLevel)},
+                {date: this.finalMaturityDate, value: Number(this.startLevel)}
+            ]
+
+            plotter.plotHorizontalLine(startLevelData, START_LINE_CLASS, "green", 1);
+        }
+
+        if (this.maturityLevel) {
+            const maturityLevelData = [
+                {date: this.startDate, value: Number(this.maturityLevel)},
+                {date: this.finalMaturityDate, value: Number(this.maturityLevel)}
+            ]
+
+            plotter.plotHorizontalLine(maturityLevelData, END_LINE_CLASS, "blue", 1);
+
+        }
+
+    }
+
+    _plotEvents(plotter) {
+        this._updateEventSequence();
+        if (this.eventSequences && this.eventSequences.length > 0) {
+            this.eventSequences.forEach(eventSequence => {
+                eventSequence.plot(plotter);
+            });
+        }
+    }
+
+    plot(plotter) {
+        // Graph scaling
+        this._updateTimeScale(plotter); // Update X-axis
+        this._updateCouponBarrierScale(plotter); // Update Y-axis
+
+        // Plot levels, asset data and events
+        this._plotProductLevels(plotter); // Update Start/End level lines
+        this._plotAssetData(plotter); // Update asset data line
+        this._plotEvents(plotter); // Update Start/End level lines
+    }
+
+    _updateEventSequence() {
+        this.eventSequences = [
+            this.finalMaturityEvent,
+            this.incomeBarrierEventSequence
+        ]
+    }
+
 }
