@@ -31,47 +31,82 @@
                 </b-form-radio-group>
             </b-col>
         </b-row>
-        <b-row class="my-1">
+        <b-row class="my-1"
+            v-if="payoffStyle === `fixed` || payoffStyle === `fixedWithMemory`">
+            <b-col sm="5">
+                <label for="input-memory-payoff">Memory Recovery:</label>
+            </b-col>
+            <b-col sm="7">
+                <b-input-group>
+                    <b-input-group-prepend>
+                        <b-form-radio-group
+                                id="memory-payoff-style"
+                                buttons
+                                v-model="memoryRecoveryStyle"
+                                :disabled="payoffStyle !== `fixedWithMemory`"
+                                @input="onChange">
+                            <b-form-radio value=value>Value</b-form-radio>
+                            <b-form-radio value=payoff>Payoff</b-form-radio>
+                        </b-form-radio-group>
+                    </b-input-group-prepend>
+                    <b-form-select
+                            v-if="memoryRecoveryStyle === `payoff`"
+                            id="input-relative-to-payoff"
+                            buttons
+                            v-model="memoryFromPayoff"
+                            :disabled="payoffStyle !== `fixedWithMemory`"
+                            :options="payoffSelections"
+                            :state="memoryFromPayoff !== null"
+                            @input="onChange">
+                    </b-form-select>
+                    <b-form-input
+                            v-if="memoryRecoveryStyle === `value`"
+                            id="input-relative-to-value"
+                            type="number"
+                            @change="onChange"
+                            :disabled="payoffStyle !== `fixedWithMemory`"
+                            v-model="memoryFromValue"
+                            placeholder="Enter absolute memory payoff to recover with this event."
+                            v-b-tooltip.hover
+                            title="Specify what value the payoff should be relative.">
+                    </b-form-input>
+                    <b-input-group-append
+                            v-if="memoryRecoveryStyle === `value`"
+                            is-text>%
+                    </b-input-group-append>
+                </b-input-group>
+            </b-col>
+        </b-row>
+        <b-row class="my-1"
+               v-if="payoffStyle === `relative`">
             <b-col sm="5">
                 <label for="input-relative-to-what">Relative to:</label>
             </b-col>
             <b-col sm="7">
-                <b-form-radio-group
-                        id="input-relative-to"
-                        buttons
-                        v-model="relativeTo"
-                        :disabled="payoffStyle !== `relative`"
-                        @input="onChange">
-                    <b-form-radio value=value>Value</b-form-radio>
-                    <b-form-radio value=barrier>Barrier</b-form-radio>
-                </b-form-radio-group>
-            </b-col>
-        </b-row>
-        <b-row v-if="relativeTo === `barrier`"
-               class="my-1">
-            <b-col sm="5">
-                <label for="input-relative-to-barrier">Select Barrier:</label>
-            </b-col>
-            <b-col sm="7">
-                <b-form-select
-                        id="input-relative-to-barrier"
-                        buttons
-                        v-model="relativeToBarrier"
-                        :disabled="payoffStyle !== `relative`"
-                        :options="barrierEventSelections"
-                        :state="relativeToBarrier !== null"
-                        @input="onChange">
-                </b-form-select>
-            </b-col>
-        </b-row>
-        <b-row v-if="relativeTo === `value`"
-               class="my-1">
-            <b-col sm="5">
-                <label for="input-relative-to-value">Input Value:</label>
-            </b-col>
-            <b-col sm="7">
-                <b-input-group append="%" class="mb-2 mr-sm-2 mb-sm-0">
+                <b-input-group>
+                    <b-input-group-prepend>
+                        <b-form-radio-group
+                                id="input-relative-to"
+                                buttons
+                                v-model="relativeTo"
+                                :disabled="payoffStyle !== `relative`"
+                                @input="onChange">
+                            <b-form-radio value=value>Value</b-form-radio>
+                            <b-form-radio value=barrier>Barrier</b-form-radio>
+                        </b-form-radio-group>
+                    </b-input-group-prepend>
+                    <b-form-select
+                            v-if="relativeTo === `barrier`"
+                            id="input-relative-to-barrier"
+                            buttons
+                            v-model="relativeToBarrier"
+                            :disabled="payoffStyle !== `relative`"
+                            :options="barrierEventSelections"
+                            :state="relativeToBarrier !== null"
+                            @input="onChange">
+                    </b-form-select>
                     <b-form-input
+                            v-if="relativeTo === `value`"
                             id="input-relative-to-value"
                             type="number"
                             @change="onChange"
@@ -81,6 +116,10 @@
                             v-b-tooltip.hover
                             title="Specify what value the payoff should be relative.">
                     </b-form-input>
+                    <b-input-group-append
+                            v-if="relativeTo === `value`"
+                            is-text>%
+                    </b-input-group-append>
                 </b-input-group>
             </b-col>
         </b-row>
@@ -167,6 +206,7 @@
 
 <script>
     import * as moment from 'moment';
+    import {parsePercentage} from "@/components/utils";
     // import {demoProducts} from "@/components/resources";
 
     export default {
@@ -189,7 +229,10 @@
                 payoffStyle: "fixed",
                 relativeTo: "value",
                 relativeToBarrier: null,
-                relativeToValue: 100,
+                relativeToValue: "100",
+                memoryRecoveryStyle: "value",
+                memoryFromPayoff: null,
+                memoryFromValue: "2",
                 numberOfBarriers: defaultNumberOfBarriers,
                 numberOfPayoffs: defaultNumberOfBarriers,
                 tableColumns: defaultTableColumns,
@@ -209,16 +252,35 @@
 
                 let events = [{
                     value: null,
-                    text: "Please select an barrier event."
+                    text: "Please select a barrier."
                 }];
 
                 if (this.incomeBarrierEvents) {
-                    events.push(this.incomeBarrierEvents.map(event => {
+                    const incomeBarrierSelections = this.incomeBarrierEvents.map(event => {
                         return {
                             value: event.key,
                             text: event.label
                         }
-                    }));
+                    });
+                    events.push(...incomeBarrierSelections);
+                }
+                return events;
+            },
+            payoffSelections() {
+
+                let events = [{
+                    value: null,
+                    text: "Please select an payoff."
+                }];
+
+                if (this.incomePayoffs) {
+                    const incomePayoffSelections = this.incomePayoffs.map(event => {
+                        return {
+                            value: event.key,
+                            text: event.label
+                        }
+                    });
+                    events.push(...incomePayoffSelections);
                 }
                 return events;
             }
@@ -248,13 +310,25 @@
                         let payoffData = {
                             payoffStyle: payoffStyle
                         };
-                        switch(payoffStyle) {
+                        switch (payoffStyle) {
                             case "relative":
                                 if (this.relativeTo === "barrier") {
-                                    payoffData.relativeToBarrier = this.relativeToBarrier;
+                                    payoffData.payoffStyle = "relativeToBarrier";
+                                    payoffData.relativeToBarrier = this.incomeBarrierEvents.findIndex(
+                                        barrier => barrier.key === this.relativeToBarrier);
+                                } else {
+                                    payoffData.payoffStyle = "relativeToValue";
+                                    payoffData.relativeToValue = parsePercentage(this.relativeToValue);
                                 }
-                                else {
-                                    payoffData.relativeToValue = this.relativeToValue;
+                                break;
+                            case "fixedWithMemory":
+                                if (this.memoryRecoveryStyle === "payoff") {
+                                    payoffData.payoffStyle = "fixedWithMemoryFromPayoffLevel";
+                                    payoffData.memoryFromPayoff = this.incomePayoffs.findIndex(
+                                        payoff => payoff.key === this.memoryFromPayoff);
+                                } else {
+                                    payoffData.payoffStyle = "fixedWithMemoryFromValue";
+                                    payoffData.memoryFromValue = parsePercentage(this.memoryFromValue);
                                 }
                                 break;
                         }
@@ -263,7 +337,6 @@
                             incomeBarriers: value.incomeBarriers.map(barrier => Number(barrier) / 100.0),
                             couponPayoffs: value.couponPayoffs.map(payoff => Number(payoff) / 100.0),
                             date: value.date,
-                            couponType: value.couponType,
                             payoffData: payoffData
                         };
                     });
@@ -312,7 +385,7 @@
                             default: true,
                             index: index,
                             incomeBarriers: new Array(this.numberOfBarriers).fill("100"),
-                            couponPayoffs: new Array(this.numberOfBarriers).fill("0")
+                            couponPayoffs: new Array(this.numberOfBarriers).fill("1")
                         };
                         this.eventDates.push(result);
                     }
@@ -348,6 +421,8 @@
                             columnIndex: columnIndex++
                         }
                     });
+
+                this.incomePayoffs = payoffColumns;
 
                 this.tableColumns = [
                     {
@@ -387,7 +462,7 @@
                 const incomeEvent = this.eventDates[eventIndex];
                 const payoffLevel = Number(incomeEvent.couponPayoffs[payoffIndex]);
 
-                return payoffLevel >= 0;
+                return payoffLevel > 0;
 
             },
             validateIncomeBarrierState(eventIndex, incomeBarrierIndex) {

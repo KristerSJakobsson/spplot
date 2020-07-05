@@ -27,16 +27,15 @@ class EventSequence extends Plottable {
 
 
 export class IncomeBarrierEventSequence extends EventSequence {
-    add(plannedEventDate, barrierLevels, couponType, couponPayoffs, isMemory) {
+    add(plannedEventDate, barrierLevels, payoffData, couponPayoffs) {
         const identifier = `income-barrier-event-${this.events.length}`;
         const previousEvents = [...this.events];
         const event = new IncomeBarrierEvent(
             identifier,
             plannedEventDate,
             barrierLevels,
-            couponType,
+            payoffData,
             couponPayoffs,
-            isMemory,
             previousEvents);
         this.events.push(event);
     }

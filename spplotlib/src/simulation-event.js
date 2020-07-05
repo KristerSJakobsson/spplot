@@ -120,18 +120,21 @@ export class FinalMaturityEvent extends Event {
 
 export class IncomeBarrierEvent extends Event {
 
-    isMemory
+    payoffData
     barrierLevels
     couponPayoffs
 
-    constructor(identifier, plannedEventDate, barrierLevels, couponType, couponPayoffs, isMemory, dependentEvents) {
+    // Only used with memory
+    memoryPayoff
+
+    constructor(identifier, plannedEventDate, barrierLevels, payoffData, couponPayoffs, dependentEvents) {
         super(identifier,
             plannedEventDate,
             "Not Executed",
             dependentEvents);
-        this.isMemory = isMemory;
         this.barrierLevels = barrierLevels;
         this.couponPayoffs = couponPayoffs;
+        this.payoffData = payoffData;
     }
 
     evaluate(assetData) {
@@ -169,17 +172,38 @@ export class IncomeBarrierEvent extends Event {
 
         // const difference = this.assetLevel - this.barrierLevels[payoffRangeIndex - 1];
         //
-        // if (this.couponType === "relative") {
-        //     payoff *= Math.max(difference, 0.0);
-        // }
-        //
+        if (this.payoffData.payoffStyle === "fixedWithMemoryFromValue" ||
+            this.payoffData.payoffStyle === "fixedWithMemoryFromPayoffLevel") {
+            if (this.executed) {
+                // Execute with payoffs from memory
+                this.memoryPayoff = 0;
+                if (this.dependentEvents && this.dependentEvents.length > 0) {
+                    const previousEvent = this.dependentEvents[this.dependentEvents.length - 1];
+                    payoff += previousEvent.checkMemoryFeature();
+                }
+            }
+            else {
+                // Store the memory payoff
+                if (this.payoffData.payoffStyle === "fixedWithMemoryFromValue") {
+                    this.memoryPayoff = this.payoffData.value;
+                }
+                if (this.payoffData.payoffStyle === "fixedWithMemoryFromPayoffLevel") {
+                    const payoffLevel = this.payoffData.payoffIndex;
+                    this.memoryPayoff = this.couponPayoffs[payoffLevel];
+                }
+            }
+        }
+
         // let dependentEvents = null;
         // if (this.previousEvent) {
         //     dependentEvents = [previousEvent];
         // }
 
-        // if (this.isMemory && this.executed && this.previousEvent) {
-        //     payoff += this.previousEvent.checkMemoryFeature();
+        // if (this.payoffData.payoffStyle === "fixedWithMemory" &&
+        //     this.executed &&
+        //     this.dependentEvents) {
+        //     const previousEvent = this.dependentEvents[this.dependentEvents.length - 1];
+        //     payoff += previousEvent.checkMemoryFeature();
         // }
 
         let comment = `Date: ${formatDate(this.eventDate)}`;
@@ -198,13 +222,12 @@ export class IncomeBarrierEvent extends Event {
 
         // Memory feature, recover any previously lost income events
         let pastEventPayoffs = 0.0;
-        if (this.dependentEvents)
-            pastEventPayoffs = this.dependentEvents
-                .map(pastEvent => pastEvent.checkMemoryFeature())
-                .reduce((previous, current) => previous + current, pastEventPayoffs);
+        if (this.dependentEvents && this.dependentEvents.length > 0) {
+            const previousEvent = this.dependentEvents[this.dependentEvents.length - 1];
+            pastEventPayoffs = previousEvent.checkMemoryFeature();
+        }
 
-        return this.eventPayoff + pastEventPayoffs;
-
+        return this.memoryPayoff + pastEventPayoffs;
     }
 
     getPayoffRanges() {
@@ -252,8 +275,9 @@ export class IncomeBarrierEvent extends Event {
 
         const payoffs = this.getPayoffRanges();
 
+        // For barriers we plot all payoffs but the last one
         const plotBarriers = payoffs
-            .filter(payoffRange => payoffRange.payoff > 0.0)
+            .filter((item, index) => index < payoffs.length - 1)
             .map(payoffRange => {
                 return {
                     min: payoffRange.min,

@@ -64,6 +64,36 @@ export class SimulationModel {
         return this;
     }
 
+    parsePayoffData(payoffData) {
+        switch (payoffData.payoffStyle) {
+            case "relativeToBarrier":
+                return {
+                    payoffStyle: "relativeToBarrier",
+                    barrierIndex: payoffData.relativeToBarrier
+                }
+            case "relativeToValue":
+                return {
+                    payoffStyle: "relativeToValue",
+                    value: payoffData.relativeToValue
+                }
+            case "fixedWithMemoryFromValue":
+                return {
+                    payoffStyle: payoffData.payoffStyle,
+                    value: payoffData.memoryFromValue
+                }
+            case "fixedWithMemoryFromPayoffLevel":
+                return {
+                    payoffStyle: payoffData.payoffStyle,
+                    payoffIndex: payoffData.memoryFromPayoff
+                }
+            case "fixed":
+                return {
+                    payoffStyle: payoffData.payoffStyle
+                }
+        }
+        throw `Coupon Type ${payoffData.payoffStyle} is not supported in SPPlot.`
+    }
+
     setIncomeBarrierEvents(incomeBarrierEvents) {
         if (incomeBarrierEvents) {
             const eventSequence = new IncomeBarrierEventSequence();
@@ -72,9 +102,8 @@ export class SimulationModel {
                 return {
                     date: parseDate(data.date),
                     incomeBarriers: data.incomeBarriers.map(value => Number(value)),
-                    couponType: data.couponType,
-                    couponPayoffs: data.couponPayoffs.map(value => Number(value)),
-                    isMemory: Boolean(data.isMemory)
+                    payoffData: this.parsePayoffData(data.payoffData),
+                    couponPayoffs: data.couponPayoffs.map(value => Number(value))
                 };
             })
                 .sort((first, second) => {
@@ -86,9 +115,8 @@ export class SimulationModel {
                     eventSequence.add(
                         event.date,
                         event.incomeBarriers,
-                        event.couponType,
-                        event.couponPayoffs,
-                        event.isMemory);
+                        event.payoffData,
+                        event.couponPayoffs);
                 });
             this.incomeBarrierEventSequence = eventSequence;
         }
