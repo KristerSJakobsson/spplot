@@ -42,7 +42,7 @@
             <b-tab title="Simulation" active>
                 <SimulationGraph :payload="payload"/>
             </b-tab>
-            <b-tab title="Payoff">
+            <b-tab title="Payoff" disabled>
                 <PayoffGraph :payload="payload"/>
             </b-tab>
         </b-tabs>

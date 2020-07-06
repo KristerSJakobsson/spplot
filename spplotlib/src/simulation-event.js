@@ -137,6 +137,52 @@ export class IncomeBarrierEvent extends Event {
         this.payoffData = payoffData;
     }
 
+    findPayoffRangeIndex() {
+        // Returns the index of the barrier the asset will payoff
+        let previousValue = 0.0;
+        const payoffRangeIndex = this.barrierLevels.findIndex(value => {
+            let result = false;
+            if (this.assetLevel <= value && this.assetLevel > previousValue)
+                result = true;
+            previousValue = value;
+            return result;
+        });
+        return payoffRangeIndex === -1 ? this.barrierLevels.length : payoffRangeIndex;
+    }
+
+    calculateFixedPayoff() {
+        const payoffRangeIndex = this.findPayoffRangeIndex();
+
+        let payoff;
+        if (payoffRangeIndex === 0) {
+            // This implies no barrier has been surpassed
+            payoff = 0.0;
+            this.executed = false;
+        }
+        else {
+            payoff = this.couponPayoffs[payoffRangeIndex - 1];
+            this.executed = true;
+        }
+        return payoff;
+    }
+
+    calculateRelativePayoff(relativeToValue) {
+        const payoffRangeIndex = this.findPayoffRangeIndex();
+
+        let payoff;
+        if (payoffRangeIndex === 0) {
+            // This implies no barrier has been surpassed
+            payoff = 0.0;
+            this.executed = false;
+        }
+        else {
+            const payoffPercent = this.couponPayoffs[payoffRangeIndex - 1];
+            payoff = (this.assetLevel - relativeToValue) * payoffPercent;
+            this.executed = true;
+        }
+        return payoff;
+    }
+
     evaluate(assetData) {
         super.evaluate(assetData);
 
@@ -146,32 +192,24 @@ export class IncomeBarrierEvent extends Event {
             return;
         }
 
-        let previousValue = 0.0;
-        const payoffRangeIndex = this.barrierLevels.findIndex(value => {
-            let result = false;
-            if (this.assetLevel <= value && this.assetLevel > previousValue)
-                result = true;
-            previousValue = value;
-            return result;
-        });
-
-        // If the underlying is in payoffRange #2 then we get the coupon from lower payoff range # 1
         let payoff;
-        if (payoffRangeIndex === -1) {
-            payoff = this.couponPayoffs[this.couponPayoffs.length - 1];
-            this.executed = true;
-        }
-        else if (payoffRangeIndex === 0) {
-            payoff = 0.0;
-            this.executed = false;
-        }
-        else {
-            payoff = this.couponPayoffs[payoffRangeIndex - 1];
-            this.executed = true;
+        switch (this.payoffData.payoffStyle) {
+            case "fixed":
+            case "fixedWithMemoryFromValue":
+            case "fixedWithMemoryFromPayoffLevel":
+                payoff = this.calculateFixedPayoff();
+                break;
+            case "relativeToValue":
+                payoff = this.calculateRelativePayoff(this.payoffData.value);
+                break;
+            case "relativeToBarrier":
+                payoff = this.calculateRelativePayoff(this.barrierLevels[this.payoffData.barrierIndex]);
+                break;
+            default:
+                payoff = 0.0;
         }
 
-        // const difference = this.assetLevel - this.barrierLevels[payoffRangeIndex - 1];
-        //
+        // Memory feature
         if (this.payoffData.payoffStyle === "fixedWithMemoryFromValue" ||
             this.payoffData.payoffStyle === "fixedWithMemoryFromPayoffLevel") {
             if (this.executed) {
@@ -193,18 +231,6 @@ export class IncomeBarrierEvent extends Event {
                 }
             }
         }
-
-        // let dependentEvents = null;
-        // if (this.previousEvent) {
-        //     dependentEvents = [previousEvent];
-        // }
-
-        // if (this.payoffData.payoffStyle === "fixedWithMemory" &&
-        //     this.executed &&
-        //     this.dependentEvents) {
-        //     const previousEvent = this.dependentEvents[this.dependentEvents.length - 1];
-        //     payoff += previousEvent.checkMemoryFeature();
-        // }
 
         let comment = `Date: ${formatDate(this.eventDate)}`;
         comment += `<br>Income Payment: ${formatPercent(payoff, 2)}`;

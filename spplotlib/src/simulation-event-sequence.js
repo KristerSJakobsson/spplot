@@ -47,11 +47,12 @@ export class IncomeBarrierEventSequence extends EventSequence {
                 return {
                     date: event.eventDate,
                     value: event.assetLevel,
-                    comment: event.comment
+                    comment: event.comment,
+                    executed: event.executed
                 }
             });
 
-        plotter.plotDots(dots, RETURN_PRICE_CLASS, "red")
+        plotter.plotDots(dots, RETURN_PRICE_CLASS, event => event.executed ? "red" : "gray")
 
     }
 

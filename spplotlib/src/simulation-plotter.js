@@ -9,7 +9,7 @@ const X_RANGE_CLASS = "spplotXAxis";
 const X_LABEL = "Time";
 const Y_LABEL = "Coupon Level";
 
-const TRANSFORMATION_SPEED = 500;
+const TRANSFORMATION_SPEED = 5000;
 
 export class Plottable {
     plot(plotter) {
@@ -269,7 +269,7 @@ export class SimulationPlotter {
             .attr("r", 3)
             .attr("cy", data => this.yAxis(data.value))
             .attr("cx", data => this.xAxis(data.date))
-            .style("fill", fillColor);
+            .style("fill", data => fillColor(data));
 
     }
 

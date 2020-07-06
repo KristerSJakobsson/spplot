@@ -379,13 +379,15 @@
                             this.eventDates[index].date = dateString;
                         }
                     } else {
+                        const incomeBarrierOverrides = this.incomeBarrierEvents.map(barrier => barrier.override);
+                        const couponPayoffOverride = this.incomePayoffs.map(payoff => payoff.override);
                         const result = {
                             date: dateString,
                             visible: true,
                             default: true,
                             index: index,
-                            incomeBarriers: new Array(this.numberOfBarriers).fill("100"),
-                            couponPayoffs: new Array(this.numberOfBarriers).fill("1")
+                            incomeBarriers: incomeBarrierOverrides,
+                            couponPayoffs: couponPayoffOverride
                         };
                         this.eventDates.push(result);
                     }
@@ -417,7 +419,7 @@
                             label: `Payoff ${index + 1} (%)`,
                             type: "payoff",
                             itemIndex: index,
-                            override: "0",
+                            override: "1",
                             columnIndex: columnIndex++
                         }
                     });
