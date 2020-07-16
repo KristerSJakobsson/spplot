@@ -110,7 +110,7 @@ export class FinalMaturityEvent extends Event {
         }];
     }
 
-    plot(plotter) {
+    plotCanvas(plotter) {
         // TODO: What to plot for the maturity event?
 
         plotter.plotBarrierLines([], `${FINAL_MATURITY_EVENT_CLASS}-${this.identifier}`);
@@ -278,7 +278,7 @@ export class IncomeBarrierEvent extends Event {
         return payoffRanges;
     }
 
-    plot(plotter) {
+    plotCanvas(plotter) {
         this._plotBarrier(plotter);
     }
 

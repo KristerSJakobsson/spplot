@@ -12,7 +12,13 @@ const Y_LABEL = "Coupon Level";
 const TRANSFORMATION_SPEED = 5000;
 
 export class Plottable {
-    plot(plotter) {
+    plotCanvas(plotter) {
+        if (!plotter) {
+            console.log("Undefined plotter passed to plot function.")
+        }
+    }
+
+    plotResults(plotter) {
         if (!plotter) {
             console.log("Undefined plotter passed to plot function.")
         }
@@ -247,10 +253,10 @@ export class SimulationPlotter {
         const mouseleave = function () {
             // Remove black outline when entering circle
             tooltip
-                .style("opacity", 0)
+                .style("opacity", 0);
             d3.select(this)
                 .style("stroke", "none")
-                .style("opacity", 0.8)
+                .style("opacity", 0.8);
         }
 
         const dots = this.svg
@@ -270,6 +276,52 @@ export class SimulationPlotter {
             .attr("cy", data => this.yAxis(data.value))
             .attr("cx", data => this.xAxis(data.date))
             .style("fill", data => fillColor(data));
+
+    }
+
+    plotAreas(areas, identifier) {
+        const colors = ["lightBlue",
+            "LightCyan",
+            "LightCoral",
+            "LightGoldenRodYellow",
+            "LightSalmon",
+            "LightGray",
+            "LightSeaGreen"
+        ]
+
+        let colorIndex = 0;
+
+        const nextColor = () => {
+            const color = colors[colorIndex % colors.length];
+            colorIndex++;
+            return color;
+        };
+
+        areas.forEach((areaData, index) => {
+
+            const dataArea = this.svg
+                .selectAll(`.${identifier}-${index}`)
+                .data([areaData]);
+
+            const areaFunction = (datum) => {
+                return d3.area()
+                    .curve(d3.curveLinear)
+                    .x(item => this.xAxis(item.date))
+                    .y0(item => this.yAxis(item.min))
+                    .y1(item => this.yAxis(item.max))(datum);
+            };
+
+            dataArea.enter()
+                .append("path")
+                .attr("class", `${identifier}-${index}`)
+                .merge(dataArea)
+                .transition()
+                .duration(TRANSFORMATION_SPEED)
+                .attr("d", data => areaFunction(data))
+                .style("opacity", 0.3)
+                .style("fill", nextColor());
+
+        });
 
     }
 

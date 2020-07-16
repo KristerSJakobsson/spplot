@@ -96,7 +96,7 @@ export class SimulationModel {
 
     setIncomeBarrierEvents(incomeBarrierEvents) {
         if (incomeBarrierEvents) {
-            const eventSequence = new IncomeBarrierEventSequence();
+            const eventSequence = new IncomeBarrierEventSequence(this.startDate, this.startLevel, this.finalMaturityDate);
 
             incomeBarrierEvents.map(data => {
                 return {
@@ -212,9 +212,7 @@ export class SimulationModel {
 
     _plotAssetData(plotter) {
         // When we have asset data, plot it
-        if (this.assetData) {
-            plotter.plotAssetData(this.assetData, ASSET_DATA_CLASS, "black", 1);
-        }
+        plotter.plotAssetData(this.assetData, ASSET_DATA_CLASS, "black", 1);
     }
 
     _plotProductLevels(plotter) {
@@ -245,11 +243,18 @@ export class SimulationModel {
 
     }
 
-    _plotEvents(plotter) {
-        this._updateEventSequence();
+    _plotEventsCanvas(plotter) {
         if (this.eventSequences && this.eventSequences.length > 0) {
             this.eventSequences.forEach(eventSequence => {
-                eventSequence.plot(plotter);
+                eventSequence.plotCanvas(plotter);
+            });
+        }
+    }
+
+    _plotEventsResults(plotter) {
+        if (this.eventSequences && this.eventSequences.length > 0) {
+            this.eventSequences.forEach(eventSequence => {
+                eventSequence.plotResults(plotter);
             });
         }
     }
@@ -261,8 +266,15 @@ export class SimulationModel {
 
         // Plot levels, asset data and events
         this._plotProductLevels(plotter); // Update Start/End level lines
-        this._plotAssetData(plotter); // Update asset data line
-        this._plotEvents(plotter); // Update Start/End level lines
+
+        this._updateEventSequence();
+        this._plotEventsCanvas(plotter); // Background for the events
+
+        if (this.assetData) {
+            this._plotAssetData(plotter); // Update asset data line
+            this._plotEventsResults(plotter);
+            this._plotProductLevels(plotter); // Update Start/End level lines
+        }
     }
 
     _updateEventSequence() {
