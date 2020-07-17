@@ -5,6 +5,7 @@ import {parseDate} from "./formatting-utils";
 
 const BARRIER_EVENT_CLASS = "spPlotBarrierEventLines"
 const FINAL_MATURITY_EVENT_CLASS = "spFinalMaturityEventLine"
+const END_LINE_CLASS = "spPlotEndLine"
 
 //
 // class EventPayoff {
@@ -75,12 +76,15 @@ export class FinalMaturityEvent extends Event {
     /* CapitalIncomeBarrierEvent Protected -> Get the investment back */
 
     startLevel
+    startDate
     participationRate
     maturityPayoff
+    maturityLevel
 
-    constructor(identifier, finalMaturityDate, startLevel, participationRate) {
+    constructor(identifier, finalMaturityDate, startDate, startLevel, participationRate) {
         let comment = `Date: ${formatDate(finalMaturityDate)}`;
         super(identifier, finalMaturityDate, comment, null);
+        this.startDate = startDate;
         this.startLevel = startLevel;
         this.participationRate = participationRate;
         this.maturityPayoff = startLevel;
@@ -94,6 +98,14 @@ export class FinalMaturityEvent extends Event {
             this.comment = `This product has not reached maturity.`
             this.isFutureEvent = true;
             return;
+        }
+
+        // Get the End Level (value for End Date)
+        const maturityData = assetData.find(data => formatDate(data.date) === formatDate(this.eventDate));
+        if (maturityData) {
+            this.maturityLevel = Number(maturityData.value);
+        } else {
+            this.maturityLevel = null;
         }
 
         const difference = this.assetLevel - this.startLevel;
@@ -110,12 +122,28 @@ export class FinalMaturityEvent extends Event {
         }];
     }
 
-    plotCanvas(plotter) {
-        // TODO: What to plot for the maturity event?
+    plotResults(plotter) {
+        if (this.maturityLevel) {
+            const maturityLevelData = [
+                {date: this.startDate, value: Number(this.maturityLevel)},
+                {date: this.eventDate, value: Number(this.maturityLevel)}
+            ]
 
-        plotter.plotBarrierLines([], `${FINAL_MATURITY_EVENT_CLASS}-${this.identifier}`);
+            plotter.plotHorizontalLine(maturityLevelData, END_LINE_CLASS, "blue", 1);
 
-    }
+        }
+
+        const dots = [{
+            date: this.eventDate,
+            value: this.assetLevel,
+            comment: this.comment,
+            executed: this.executed
+        }]
+
+        plotter.plotDots(dots, FINAL_MATURITY_EVENT_CLASS, event => event.executed ? "red" : "gray")
+
+}
+
 }
 
 export class IncomeBarrierEvent extends Event {

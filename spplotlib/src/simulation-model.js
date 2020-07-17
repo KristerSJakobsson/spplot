@@ -5,7 +5,6 @@ import {formatDate, parseDate} from "./formatting-utils.js"
 // CSS Classes
 const ASSET_DATA_CLASS = "spPlotAssetLine"
 const START_LINE_CLASS = "spPlotStartLine"
-const END_LINE_CLASS = "spPlotEndLine"
 
 
 export class SimulationModel {
@@ -14,7 +13,6 @@ export class SimulationModel {
     participationRate;
     startLevel; // Start Level in percent
     maturityLevel; // End Level in percent
-    maturityData;
     startDate;
     finalMaturityDate;
     assetData;
@@ -125,11 +123,13 @@ export class SimulationModel {
     }
 
     _parse_final_maturity_event() {
-        if (this.finalMaturityDate && this.startLevel && this.participationRate) {
+        if (this.finalMaturityDate && this.startLevel && this.participationRate && this.fixing) {
             this.finalMaturityEvent = new FinalMaturityEvent(
                 "finalMaturityEvent",
                 this.finalMaturityDate,
+                this.startDate,
                 this.startLevel,
+                this.fixing,
                 this.participationRate);
         }
     }
@@ -146,14 +146,6 @@ export class SimulationModel {
         }
 
         this.fixing = Number(fixing.value);
-
-        // Get the End Level (value for End Date)
-        this.maturityData = assetData.find(data => data.date === formatDate(this.finalMaturityDate));
-        if (this.maturityData) {
-            this.maturityLevel = Number(this.maturityData.value) / this.fixing;
-        } else {
-            this.maturityLevel = null;
-        }
 
         // Process the data for plotting
         this.assetData = assetData
@@ -188,6 +180,7 @@ export class SimulationModel {
 
         }
 
+        this._parse_final_maturity_event();
         this._updateEventSequence();
         if (this.eventSequences && this.eventSequences.length > 0) {
             this.eventSequences.forEach(eventSequence => {
@@ -231,16 +224,6 @@ export class SimulationModel {
             plotter.plotHorizontalLine(startLevelData, START_LINE_CLASS, "green", 1);
         }
 
-        if (this.maturityLevel) {
-            const maturityLevelData = [
-                {date: this.startDate, value: Number(this.maturityLevel)},
-                {date: this.finalMaturityDate, value: Number(this.maturityLevel)}
-            ]
-
-            plotter.plotHorizontalLine(maturityLevelData, END_LINE_CLASS, "blue", 1);
-
-        }
-
     }
 
     _plotEventsCanvas(plotter) {
@@ -263,11 +246,11 @@ export class SimulationModel {
         // Graph scaling
         this._updateTimeScale(plotter); // Update X-axis
         this._updateCouponBarrierScale(plotter); // Update Y-axis
+        this._updateEventSequence();
 
         // Plot levels, asset data and events
         this._plotProductLevels(plotter); // Update Start/End level lines
 
-        this._updateEventSequence();
         this._plotEventsCanvas(plotter); // Background for the events
 
         if (this.assetData) {
