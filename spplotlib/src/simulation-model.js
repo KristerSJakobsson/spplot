@@ -1,5 +1,5 @@
 import {FinalMaturityEvent} from "./simulation-event.js"
-import {IncomeBarrierEventSequence} from "./simulation-event-sequence.js"
+import {EventSequence, IncomeBarrierEventSequence} from "./simulation-event-sequence.js"
 import {formatDate, parseDate} from "./formatting-utils.js"
 
 // CSS Classes
@@ -22,7 +22,7 @@ export class SimulationModel {
     eventSequences; // Events after executing
 
     constructor() {
-        this.eventSequences = [];
+        this.incomeBarrierEventSequence = new EventSequence();
     }
 
     setNotional(notional) {
@@ -119,6 +119,8 @@ export class SimulationModel {
             this.incomeBarrierEventSequence = eventSequence;
         }
 
+        this._updateEventSequence();
+
         return this;
     }
 
@@ -132,6 +134,8 @@ export class SimulationModel {
                 this.fixing,
                 this.participationRate);
         }
+
+        this._updateEventSequence();
     }
 
     setAssetData(assetData) {
@@ -181,8 +185,7 @@ export class SimulationModel {
         }
 
         this._parse_final_maturity_event();
-        this._updateEventSequence();
-        if (this.eventSequences && this.eventSequences.length > 0) {
+        if (this.eventSequences) {
             this.eventSequences.forEach(eventSequence => {
                 eventSequence.evaluate(this.assetData);
             });
@@ -227,7 +230,7 @@ export class SimulationModel {
     }
 
     _plotEventsCanvas(plotter) {
-        if (this.eventSequences && this.eventSequences.length > 0) {
+        if (this.eventSequences) {
             this.eventSequences.forEach(eventSequence => {
                 eventSequence.plotCanvas(plotter);
             });
@@ -235,7 +238,7 @@ export class SimulationModel {
     }
 
     _plotEventsResults(plotter) {
-        if (this.eventSequences && this.eventSequences.length > 0) {
+        if (this.eventSequences) {
             this.eventSequences.forEach(eventSequence => {
                 eventSequence.plotResults(plotter);
             });
@@ -246,11 +249,9 @@ export class SimulationModel {
         // Graph scaling
         this._updateTimeScale(plotter); // Update X-axis
         this._updateCouponBarrierScale(plotter); // Update Y-axis
-        this._updateEventSequence();
 
         // Plot levels, asset data and events
         this._plotProductLevels(plotter); // Update Start/End level lines
-
         this._plotEventsCanvas(plotter); // Background for the events
 
         if (this.assetData) {
@@ -261,10 +262,16 @@ export class SimulationModel {
     }
 
     _updateEventSequence() {
-        this.eventSequences = [
-            this.finalMaturityEvent,
-            this.incomeBarrierEventSequence
-        ]
+        let eventSequences = [];
+        if (this.incomeBarrierEventSequence) {
+            eventSequences.push(this.incomeBarrierEventSequence);
+        }
+
+        if (this.finalMaturityEvent) {
+            eventSequences.push(this.finalMaturityEvent);
+        }
+
+        this.eventSequences = eventSequences;
     }
 
 }

@@ -4,7 +4,7 @@ import {IncomeBarrierEvent} from "./simulation-event.js"
 const RETURN_PRICE_CLASS = "spPlotReturnedPrice"
 const PAYOFF_AREAS_GRAPH = "spPlotPayoffAreas"
 
-class EventSequence extends Plottable {
+export class EventSequence extends Plottable {
     events
     startDate
     maturityDate
@@ -26,13 +26,13 @@ class EventSequence extends Plottable {
     plotCanvas(plotter) {
         super.plotCanvas(plotter);
 
-        this.events.forEach(event => event.plotCanvas(plotter))
+        this.events.forEach(event => event.plotCanvas(plotter));
     }
 
     plotResults(plotter) {
         super.plotResults(plotter);
 
-        this.events.forEach(event => event.plotResults(plotter))
+        this.events.forEach(event => event.plotResults(plotter));
 
     }
 
